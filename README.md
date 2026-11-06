@@ -1,268 +1,504 @@
-# Meldrix Download Manager
+# 🪟 Meldrix Download Manager
 
 <div align="center">
 
-### A Windows desktop download manager with optional Chrome and Microsoft Edge integration
+### A Powerful, Modern & Lightweight Windows Download Manager
 
-[Project repository](https://github.com/fahadmia20333/download-manager) · Windows · Electron · React · TypeScript
+**Manage downloads. Capture browser downloads. Organize everything in one place.**
+
+<br>
+
+[![Windows](https://img.shields.io/badge/Platform-Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
+[![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?style=for-the-badge&logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![React](https://img.shields.io/badge/React-UI-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Powered-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
+<br>
+
+**[⬇️ Download for Windows](#-download)** · **[✨ Features](#-features)** · **[📖 Installation](#-installation)** · **[🛠️ Development](#️-development-setup)**
 
 </div>
 
-> **Release status:** A GitHub check found no `v1.0.0` release or tag at the project repository when this README was prepared. The setup and portable download links are therefore not advertised as available. Check the [repository](https://github.com/fahadmia20333/download-manager) for published releases.
+---
 
-## About Meldrix Download Manager
+## 📥 Download
 
-Meldrix is a Windows desktop application for adding, organizing, and monitoring downloads. Its optional Manifest V3 extension hands supported browser downloads and detected media links to the desktop app through Chrome/Edge Native Messaging.
+Get Meldrix Download Manager for Windows.
 
-The application is built with Electron, React, TypeScript, and a local SQLite database. Download records and settings are stored on the computer. No Meldrix cloud account is required.
+<div align="center">
 
-## Key Features
+### Choose Your Edition
 
-- Add HTTP or HTTPS URLs directly or send supported items from Chrome and Edge.
-- Queue downloads and view task status, progress, and transfer speed.
-- Pause and resume direct-file downloads when the server supports HTTP byte ranges.
-- Retain task records and settings locally in SQLite.
-- Choose a destination folder and organize tasks by detected file category.
-- Receive desktop notifications when downloads complete.
-- Use the system tray to show the app and start or stop the queue.
-- Optionally detect supported browser downloads and HTML media through the extension.
+| 🖥️ Edition | 📋 Description | 📦 Download |
+|:---|:---|:---:|
+| **Windows Installer** | Standard Windows installation. Recommended for most users. | [⬇️ Download Setup](https://github.com/fahadmia20333/dawnload-manager/releases/download/v1.0.0/MeldrixDownloadManager-Setup.exe) |
+| **Portable Edition** | Run Meldrix without a traditional installation. | [⬇️ Download Portable](https://github.com/fahadmia20333/dawnload-manager/releases/download/v1.0.0/MeldrixDownloadManager-Portable.exe) |
 
-## Screenshots
+**Recommended:** Windows Setup Installer
 
-No screenshots are currently included in the repository.
+</div>
 
-## Installation
+> **⚠️ Windows SmartScreen:** The application is currently unsigned. Windows may display a security or reputation warning when launching the installer. Only download it from the official project release.
 
-### Windows Installer
+---
 
-A GitHub Release `v1.0.0` has been created, but the Windows installer and portable executable assets must be uploaded manually through the GitHub web interface. The release notes and source code are available; the EXE files will be published once assets are uploaded.
+## 🚀 About Meldrix
 
-For immediate use, the application can be built locally:
+Meldrix Download Manager is a standalone Windows application designed to make downloading and managing files easier.
 
-```powershell
-npm run build-native-host
-npm run dist
-```
+Built with **Electron, React, TypeScript, and SQLite**, Meldrix combines a modern desktop interface with optional Google Chrome and Microsoft Edge integration.
 
-This produces `release/MeldrixDownloadManager-Setup.exe` and `release/MeldrixDownloadManager-Portable.exe` from the local build.
+Its browser extension communicates directly with the desktop application through **Native Messaging**. This allows supported browser downloads and detected media links to be sent to Meldrix without requiring a permanent localhost server or cloud account.
 
-Once the GitHub Release assets are uploaded, direct download links will be available from the release page.
+### Why Meldrix?
 
-### Portable Version
+- 🖥️ Standalone Windows desktop application
+- 🌐 Chrome and Microsoft Edge integration
+- ⚡ Direct HTTP/HTTPS downloads
+- ⏸️ Pause and resume support where the server allows it
+- 📂 Custom download locations
+- 🗂️ Organized download management
+- 🎬 Detection of supported browser media
+- 💾 Local SQLite persistence
+- 🔒 No mandatory cloud account
 
-Same as the Windows Installer — the portable executable is built locally and can be extracted to any location. The release assets will be available from the GitHub Release page once uploaded.
+---
 
-### Browser Extension Setup
+## ✨ Features
 
-After installing or building the desktop app:
+### 📥 Download Management
 
-1. Start Meldrix and open **Settings → Browser Integration → Open extension folder**. This opens the extension bundled with the app.
-2. In Chrome, open `chrome://extensions`; in Edge, open `edge://extensions`.
-3. Turn on **Developer mode**, select **Load unpacked**, and choose the opened `extension` folder.
-4. Open the Meldrix extension popup. It reports a connection only after a real Native Messaging handshake with the desktop app.
+- Add HTTP and HTTPS download URLs.
+- Monitor download progress in real time.
+- View download speed and estimated remaining time.
+- Pause and resume supported direct-file downloads.
+- Manage queued and active downloads.
+- Save files to a selected destination folder.
+- Organize downloads by detected file category.
 
-The Windows installer registers the Native Messaging host for the current Windows user. For the portable build, keep a copy of the extension folder outside the portable app's temporary extraction location, then load that copy unpacked. The installer is the simpler option for browser integration when a published installer is available.
+### 🌐 Browser Integration
 
-## Browser Integration
+- Chrome and Microsoft Edge support.
+- Manifest V3 browser extension.
+- Native Messaging communication.
+- Send supported browser downloads to Meldrix.
+- Detect supported media links on web pages.
+- Display available media formats and quality choices when exposed by the source.
+- Automatically launch the desktop application when required.
 
-### Chrome
+### 🎬 Media Detection
 
-The extension uses Chrome's Manifest V3 APIs, including `nativeMessaging`, `downloads`, `webRequest`, and page scripting for media detection. Load the bundled extension unpacked as described above.
+- Detect supported HTML media.
+- Discover HLS VOD playlists.
+- Identify available media variants.
+- Display source-provided quality choices.
+- Handle supported progressive media downloads.
 
-### Microsoft Edge
+**Note:** Meldrix does not invent video qualities. Available choices depend on the formats actually exposed by the source.
 
-The same extension is compatible with Chromium-based Microsoft Edge. Load it from `edge://extensions`. The Windows installer registers the host for both Chrome and Edge.
+### 🖥️ Desktop Experience
 
-### Native Messaging Architecture
+- Modern React-based interface.
+- System tray integration.
+- Desktop completion notifications.
+- Persistent download history.
+- Local application settings.
+- Custom download folder selection.
 
-The browser starts the Native Messaging host when it connects. The host can start Meldrix when needed and passes requests to the Electron main process over a local Windows named pipe. The application acknowledges an enqueue request only after accepting it.
+---
 
-The bridge uses protocol version 2. Browser-to-host messages use Chrome/Edge's length-prefixed JSON framing; host-to-desktop messages use newline-delimited JSON. Requests are validated, correlated, retried within bounded limits, and deduplicated. No network service or localhost web dashboard is used for this bridge.
+## 📸 Screenshots
 
-## How It Works
+Screenshots will be added here as the project interface evolves.
 
-1. A user adds a web URL in Meldrix or invokes the extension on a supported browser download or media item.
-2. The extension sends the selected URL and relevant metadata (such as filename, MIME type, size, referrer, and selected quality) over Native Messaging.
-3. Meldrix either opens a review dialog or starts the request, depending on the **Confirm before downloading** setting.
-4. The Electron main process runs the download, reports progress to the React interface, and writes the task record to local storage.
-5. Downloaded content is saved in the chosen destination folder.
+---
 
-## Supported Download Types
+## 📖 Installation
 
-| Type | Support |
-| --- | --- |
-| Direct HTTP/HTTPS files | Supported; the remote server must permit access. |
-| Common documents, archives, installers, images, audio, and video files | Detected by URL, MIME type, or browser download metadata; actual availability depends on the source. |
-| HLS video on demand | Unencrypted VOD playlists are supported. A master playlist is resolved to a variant and its segments are concatenated to a local `.ts` or `.mp4` file without remuxing. |
-| Progressive DASH | Only a direct progressive rendition can be downloaded when detected. |
-| Segmented DASH | Not supported; it requires muxing that this build does not provide. |
-| Encrypted/live HLS, DRM, and protected streams | Not supported. Meldrix does not bypass access controls. |
+### 1. Windows Setup Installer (Recommended)
 
-The extension can show discovered media formats and quality choices where the page exposes them. It does not create quality variants that are not present in the source. A direct file may offer only **Original quality**.
+1. Click the **Download Setup** link in the [Download section](#-download).
+2. Download `MeldrixDownloadManager-Setup.exe`.
+3. Open the downloaded installer.
+4. Follow the Windows installation wizard.
+5. Launch Meldrix Download Manager.
+6. Open **Settings → Browser Integration** to configure the browser extension.
 
-## Download Management Features
+### 2. Portable Edition
 
-- **Queue:** Tasks can be added to the queue or started immediately. The queue scheduler starts queued items while fewer than three downloads are active.
-- **Pause and resume:** Direct-file downloads use a partial file and an HTTP `Range` request to continue when the server supports ranges. If the server does not honor a range request, the engine restarts the file transfer rather than appending an invalid response.
-- **HLS pause behavior:** HLS downloads are written as a concatenated stream; pausing and resuming restarts that stream from the beginning.
-- **History:** Task records, statuses, and settings persist locally. Deleting a task record does not delete the completed or partial file.
-- **Progress:** The interface displays status, bytes, speed, and estimated time remaining when enough information is available.
-- **Notifications and tray:** Completion notifications use Windows/Electron notifications. The tray can show the window, start the queue, or stop active downloads.
-- **Not implemented:** Per-task multi-connection downloads and speed limits are not provided by the current engine.
+1. Download `MeldrixDownloadManager-Portable.exe`.
+2. Run the executable.
+3. Keep the application files in a permanent location.
+4. Launch Meldrix whenever you need it.
 
-## Architecture Overview
+For browser integration, copy the bundled `extension` folder from the application's resources to a permanent location before loading it into your browser.
+
+### 3. Browser Extension Setup
+
+**Google Chrome**
+
+1. Open `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select the Meldrix `extension` folder.
+5. Make sure the extension is enabled.
+
+**Microsoft Edge**
+
+1. Open `edge://extensions`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select the Meldrix `extension` folder.
+5. Make sure the extension is enabled.
+
+After setup, open the Meldrix extension popup. It should report a connection after a successful Native Messaging handshake.
+
+> **Tip:** The Windows installer is recommended for browser integration because it automatically registers the Native Messaging host for the current Windows user.
+
+---
+
+## 🌐 Browser Integration Architecture
+
+Meldrix uses the browser's native messaging system instead of a permanent local web server.
 
 ```mermaid
-flowchart LR
-    B[Chrome or Edge extension] <-->|Native Messaging<br/>protocol v2| H[Meldrix Native Messaging host]
-    H <-->|Local Windows named pipe<br/>newline-delimited JSON| E[Electron main process]
-    E --> D[Download engine]
-    E <--> DB[(Local SQLite database)]
-    D --> F[Local file system]
-    E <--> R[React renderer via validated preload IPC]
+flowchart TD
+    A["🌐 Chrome / Edge"] <-->|"Native Messaging"| B["🔌 Native Messaging Host"]
+    B <-->|"Windows Named Pipe"| C["🖥️ Electron Main Process"]
+    C <--> D["⚛️ React Interface"]
+    C <--> E["💾 SQLite Database"]
+    C --> F["📥 Download Engine"]
+    F --> G["📂 Local File System"]
 ```
 
-The renderer does not receive Node.js or direct filesystem access. It calls a limited preload API; Electron main-process handlers perform the privileged work. The database stores task metadata and application settings. Downloaded files are saved separately in the selected folder.
+### How Native Messaging Works
 
-## Technology Stack
+1. The browser extension communicates with the Native Messaging host.
+2. The host launches the desktop application when necessary.
+3. The host forwards requests to the Electron main process through a local Windows named pipe.
+4. The desktop application validates and processes incoming requests.
+5. The extension receives an acknowledgement after the application accepts the request.
 
-| Area | Technology |
-| --- | --- |
-| Desktop shell | Electron |
-| User interface | React and TypeScript |
-| Local persistence | SQLite through `sql.js` |
-| Browser integration | Chrome/Edge Manifest V3 extension |
-| Browser-to-desktop bridge | Native Messaging host and Windows named pipe |
-| Packaging | `electron-builder` for Windows NSIS and portable targets |
+The bridge uses protocol version 2, request identifiers, bounded retries, and duplicate-request protection.
 
-## Project Structure
+No permanent localhost HTTP server is required for this communication.
+
+---
+
+## 🎞️ Supported Download Types
+
+| Format / Type | Support | Details |
+|:---|:---:|:---|
+| HTTP / HTTPS files | ✅ | Direct file downloads |
+| Documents and PDFs | ✅ | Supported direct file URLs |
+| ZIP and archive files | ✅ | Supported direct file URLs |
+| Images | ✅ | Supported direct file URLs |
+| Audio and video files | ✅ | Supported direct file URLs |
+| HLS VOD | 🟡 | Unencrypted VOD playlists |
+| Progressive DASH | 🟡 | Direct progressive renditions only |
+| Segmented DASH | ❌ | Not currently supported |
+| Live HLS | ❌ | Not currently supported |
+| Encrypted HLS | ❌ | Not supported |
+| DRM-protected media | ❌ | Not supported |
+
+<sub>Support depends on the source server, available media formats, and access permissions.</sub>
+
+### HLS Notes
+
+Meldrix supports unencrypted HLS VOD playlists. A master playlist can be resolved to an available variant, and its segments are concatenated into a local `.ts` or `.mp4` file without remuxing.
+
+HLS pause and resume currently restart the stream from the beginning.
+
+---
+
+## ⚙️ Download Management
+
+| Feature | Description |
+|:---|:---|
+| Download Queue | Manage queued downloads |
+| Pause / Resume | Resume direct downloads when HTTP Range is supported |
+| Progress Tracking | Monitor bytes, speed, and remaining time |
+| Download History | Keep task records locally |
+| Folder Selection | Choose a custom download destination |
+| Notifications | Receive completion notifications |
+| System Tray | Access common application controls |
+| SQLite Storage | Persist tasks and settings locally |
+
+### Current Engine Limitations
+
+- Per-task multi-connection downloads are not implemented.
+- Download speed limits are not implemented.
+- Direct-file resume depends on server HTTP Range support.
+- HLS resume restarts the stream.
+- HLS output is not remuxed.
+
+---
+
+## 🏗️ Technology Stack
+
+| Component | Technology |
+|:---|:---|
+| Desktop Framework | Electron |
+| Frontend | React |
+| Programming Language | TypeScript |
+| UI Development | Vite |
+| Database | SQLite through sql.js |
+| Browser Extension | Chrome / Edge Manifest V3 |
+| Browser Communication | Native Messaging |
+| Local Communication | Windows Named Pipe |
+| Windows Packaging | electron-builder |
+
+---
+
+## 📁 Project Structure
 
 ```text
-electron/       Electron main process and preload bridge
-extension/      Manifest V3 browser extension
-native-host/   Native Messaging host and build/install scripts
-src/            React and TypeScript renderer
-build/          Windows installer customization
-release/        Local packaging output (created by build commands)
+Meldrix-Download-Manager/
+│
+├── electron/
+│   ├── Main process
+│   └── Preload bridge
+│
+├── extension/
+│   ├── Manifest V3 configuration
+│   ├── Background service worker
+│   └── Content scripts
+│
+├── native-host/
+│   ├── Native Messaging host
+│   └── Build and installation scripts
+│
+├── src/
+│   └── React and TypeScript interface
+│
+├── build/
+│   └── Windows installer resources
+│
+├── package.json
+├── tsconfig.json
+└── README.md
 ```
 
-## Development Setup
+---
 
-You need Windows, Node.js, and npm. From the project root, install dependencies:
+## 🛠️ Development Setup
+
+### Requirements
+
+- Windows 10 or Windows 11
+- Node.js
+- npm
+- Git
+
+### 1. Clone the Repository
+
+```powershell
+git clone https://github.com/fahadmia20333/download-manager.git
+
+cd download-manager
+```
+
+### 2. Install Dependencies
 
 ```powershell
 npm install
 ```
 
-Run the Vite renderer and Electron app in development mode:
+### 3. Start Development Mode
 
 ```powershell
 npm run dev
 ```
 
-The project does not define a separate extension build command. The extension is loaded unpacked directly from the `extension/` directory. For local Native Messaging registration, the existing helper is:
-
-```powershell
-npm run native-host
-```
-
-## Build Instructions
-
-Build the renderer and run the TypeScript project build:
-
-```powershell
-npm run build
-```
-
-Build the Native Messaging executable:
+### 4. Build the Native Messaging Host
 
 ```powershell
 npm run build-native-host
 ```
 
-Build both Windows distribution targets (NSIS installer and portable):
+For local Native Messaging host registration:
+
+```powershell
+npm run native-host
+```
+
+---
+
+## 📦 Build Instructions
+
+### Build the Application
+
+```powershell
+npm run build
+```
+
+### Build the Native Messaging Host
+
+```powershell
+npm run build-native-host
+```
+
+### Create Windows Installer and Portable Builds
 
 ```powershell
 npm run dist
 ```
 
-To build just one Windows target:
+### Build Individual Packages
+
+**Windows Installer:**
 
 ```powershell
 npm run dist:installer
+```
+
+**Portable Edition:**
+
+```powershell
 npm run dist:portable
 ```
 
-The commands write artifacts to `release/`. These are local build outputs, not evidence that a GitHub release has been published.
+Build artifacts are generated in the `release/` directory.
 
-## Troubleshooting
+---
 
-### The extension cannot connect to Meldrix
+## 🔧 Troubleshooting
 
-- Open the desktop app and the extension popup again; the extension attempts bounded reconnection automatically.
-- Check the connection and host status in **Settings → Browser Integration**.
-- Reload the unpacked extension after reinstalling or updating Meldrix.
-- Confirm that the extension was loaded from the bundled `extension` folder and that its manifest key was not changed.
+### 🔴 Extension Cannot Connect to Meldrix
 
-### The Native Messaging host is not registered
+- Make sure Meldrix is installed and available.
+- Open the desktop application manually.
+- Check **Settings → Browser Integration**.
+- Reload the browser extension.
+- Verify that the extension is loaded from the correct folder.
 
-Run the Windows installer again, then reload the extension in Chrome or Edge. The installer registers the host for the current Windows user. For development, `npm run native-host` registers the locally built host.
+### 🔴 Native Messaging Host Not Registered
 
-### The desktop application is not running
+- Re-run the Windows installer.
+- Restart or reload the browser extension.
+- For development builds, run `npm run native-host`.
 
-The Native Messaging host normally starts Meldrix when a browser request needs it. If launch recovery fails, start Meldrix manually and retry. Check the app log from its application data directory if the problem continues.
+### 🔴 Desktop Application Does Not Launch
 
-### The browser extension is not detected
+- Start Meldrix manually.
+- Retry the browser request.
+- Check the application log in its application data directory.
 
-Make sure the extension is enabled and loaded unpacked from the correct `extension` folder. The installer is recommended for a stable host registration. With the portable build, load an external copy of the extension folder rather than one inside a temporary extraction directory.
+### 🔴 Download Cannot Resume
 
-### A download fails or cannot resume
+Some servers do not support HTTP Range requests. In such cases, the application may need to restart the download.
 
-- Confirm that the source URL is reachable and that the server permits the request.
-- Resume depends on server support for HTTP byte ranges. Some servers require a fresh download.
-- Browser requests that require cookies or authorization headers are not transferred with those credentials.
-- HLS resumes from the beginning; it does not continue at the last segment.
+### 🔴 Video Quality Is Not Available
 
-### Windows SmartScreen displays a warning
+Quality selection depends on the media formats exposed by the website. If the source only provides one direct file, Meldrix may show only the original quality.
 
-The current installer is not code-signed. Windows may show a reputation warning for an unsigned build. Only install a release obtained from the official repository after a release has been published.
+---
 
-### HLS or DASH media is unavailable
+## 🔐 Security & Privacy
 
-Only unencrypted HLS VOD is supported. Live or encrypted HLS, DRM, and segmented DASH requiring muxing are not supported. Use a direct, authorized file or progressive rendition when the source offers one.
+Meldrix is designed to keep download management local to your Windows computer.
 
-## Security and Privacy
+- No mandatory account registration.
+- No required cloud storage or cloud synchronization.
+- Download records and settings are stored locally.
+- Downloaded files remain in the destination folder you select.
+- The extension does not forward browser cookies, authorization headers, or session storage to the desktop application.
+- Electron renderer Node.js integration is disabled, and context isolation is enabled.
+- Privileged operations are handled through a limited preload API and validated main-process handlers.
 
-- Download records and settings are stored locally; downloaded files remain in their chosen destination. The application does not require an account or provide a cloud-sync service.
-- The extension sends the selected URL and relevant request metadata to the desktop app. It does not forward browser cookies, authorization headers, or session storage.
-- A referrer may be passed to the download engine for sources that require it. Only use the app with content you are authorized to access.
-- Electron uses context isolation and disables renderer Node.js integration. Privileged operations are exposed through a limited preload API and validated main-process handlers.
-- No claim is made that local database contents are encrypted.
-- Meldrix does not bypass DRM, authentication, paywalls, or other access controls.
+### Responsible Use
 
-## Known Limitations
+Meldrix does not bypass:
 
-- No verified GitHub release assets were found for the supplied `v1.0.0` release URLs at the time of writing.
-- Multi-connection downloads and speed limits are not implemented.
-- Resume depends on HTTP range support; HLS resume restarts from the beginning.
-- HLS output is concatenated without remuxing, so playback or seeking compatibility can vary.
-- Live/encrypted HLS, DRM-protected content, and segmented DASH requiring muxing are unsupported.
-- Browser requests requiring session cookies or authorization headers cannot be handed off with those credentials.
-- The Windows installer is unsigned and may trigger SmartScreen warnings.
+- DRM protection
+- Authentication requirements
+- Paywalls
+- Protected media restrictions
+- Other website access controls
 
-## Roadmap
+Only download content that you are authorized to access.
 
-No public roadmap or delivery dates are published. Potential work should be tracked as an issue or discussion in the [project repository](https://github.com/fahadmia20333/download-manager); items are not represented as committed features here.
+---
 
-## Contributing
+## ⚠️ Known Limitations
 
-Contributions are welcome. Before making a substantial change, open an issue in the [repository](https://github.com/fahadmia20333/download-manager) to discuss scope. Include the Windows version, reproduction steps, and relevant non-sensitive logs when reporting a bug. Do not attach credentials, cookies, private URLs, or personal download files.
+The current version has some limitations:
 
-## License
+- Multi-connection downloads are not implemented.
+- Per-download speed limits are not available.
+- HLS resume restarts from the beginning.
+- HLS output is concatenated without remuxing.
+- Segmented DASH requiring muxing is unsupported.
+- Live and encrypted HLS are unsupported.
+- DRM-protected content is unsupported.
+- Browser requests requiring cookies or authorization headers cannot be handed off with those credentials.
+- The Windows installer is currently unsigned.
 
-No `LICENSE` file was found in the repository when this README was reviewed. Until a license is published, the project should not be assumed to grant permission to copy, modify, or redistribute its code.
+---
 
-## Support and Contact
+## 🗺️ Roadmap
 
-- **Issues and feature requests:** [GitHub Issues](https://github.com/fahadmia20333/download-manager/issues)
-- **Project updates and releases:** [GitHub repository](https://github.com/fahadmia20333/download-manager)
+Potential areas for future development:
+
+- [ ] Multi-connection download support
+- [ ] Per-download speed control
+- [ ] Improved HLS pause and resume
+- [ ] Better media compatibility
+- [ ] Download scheduling improvements
+- [ ] Additional download management options
+- [ ] UI and accessibility improvements
+
+*Roadmap items are development possibilities, not promises or currently available features.*
+
+---
+
+## 🤝 Contributing
+
+Contributions, bug reports, and feature suggestions are welcome!
+
+To contribute:
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Make your changes.
+4. Test your changes.
+5. Submit a Pull Request.
+
+For substantial changes, open an issue first to discuss the proposed implementation.
+
+When reporting bugs, include reproduction steps, Windows version, and relevant non-sensitive logs. Never share credentials, cookies, or private download URLs.
+
+---
+
+## 📄 License
+
+A license file has not yet been published in the repository.
+
+Until a license is added, do not assume that the project grants permission to redistribute, modify, or reuse its source code.
+
+---
+
+## 💬 Support & Community
+
+Need help or found a bug?
+
+- 🐛 **Bug Reports:** [Open an Issue](https://github.com/fahadmia20333/download-manager/issues)
+- 💡 **Feature Requests:** [Submit a Feature Request](https://github.com/fahadmia20333/download-manager/issues)
+- 📦 **Downloads:** [Meldrix v1.0.0 Releases](https://github.com/fahadmia20333/dawnload-manager/releases/tag/v1.0.0)
+- 💻 **Source Code:** [GitHub Repository](https://github.com/fahadmia20333/download-manager)
+
+---
+
+<div align="center">
+
+## ❤️ Built for Better Downloads
+
+**Meldrix Download Manager**
+
+A modern Windows download experience.
+
+<br>
+
+<sub>Windows · Electron · React · TypeScript</sub>
+
+</div>
