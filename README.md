@@ -26,10 +26,11 @@ Electron main process ── existing download engine ── SQLite
 
 ## Install
 
-1. Run `release/MeldrixDownloadManager-Setup.exe` (recommended), or the portable EXE.
-2. Open Meldrix → **Settings → Browser Integration → Open extension folder**.
-3. In Chrome or Edge, open `chrome://extensions` or `edge://extensions`, enable **Developer mode**, choose **Load unpacked**, and select the `extension` folder.
-4. Open the Meldrix toolbar popup. It shows **Connected to Meldrix** only after a real Native Messaging v2 readiness/health exchange.
+1. [Download the Setup installer](https://github.com/fahadmia20333/dawnload-manager/releases/download/v1.0.0/MeldrixDownloadManager-Setup.exe) (recommended).
+2. [Download the Portable version](https://github.com/fahadmia20333/dawnload-manager/releases/download/v1.0.0/MeldrixDownloadManager-Portable.exe).
+3. Open Meldrix → **Settings → Browser Integration → Open extension folder**.
+4. In Chrome or Edge, open `chrome://extensions` or `edge://extensions`, enable **Developer mode**, choose **Load unpacked**, and select the `extension` folder.
+5. Open the Meldrix toolbar popup. It shows **Connected to Meldrix** only after a real Native Messaging v2 readiness/health exchange.
 
 For the portable build, copy the `extension` folder from the app's temporary resources to a permanent location before closing it, then load that copy unpacked. The Setup installer is recommended when browser integration is required.
 
