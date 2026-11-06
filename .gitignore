@@ -1,0 +1,42 @@
+# Electron build output
+dist/
+release/
+
+# Electron executable
+electron/dist/
+
+# Tauri build artifacts
+src-tauri/target/
+
+# Native host binaries
+native-host/MeldrixNativeHost.exe
+
+# Environment variables
+.env
+
+# TypeScript build info
+*.tsbuildinfo
+
+# npm dependencies
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.userdata/
+
+# End executable
+*.exe
+
+# Packaged app
+*.app
+
+# OSX
+.DS_Store
+
+# Lisgs
+# language specific
+# > Binary files
+# .exe
+# .dmg
