@@ -1,6 +1,7 @@
 # Electron build output
 dist/
 release/
+dist/
 
 # Electron executable
 electron/dist/
@@ -26,17 +27,19 @@ node_modules/
 *.suo
 *.userdata/
 
-# End executable
+# Binary and artifact files
 *.exe
-
-# Packaged app
-*.app
+*.asar
+*.blockmap
+*.log
 
 # OSX
 .DS_Store
 
-# Lisgs
-# language specific
+# Windows
+Thumbs.db
+
+# Language specific
 # > Binary files
 # .exe
 # .dmg
