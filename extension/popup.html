@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Meldrix</title>
+<style>
+  body { width: 340px; margin: 0; padding: 16px; font: 13px "Segoe UI", Arial, sans-serif; color: #182034; background: #f8f9fc; }
+  h1 { font-size: 19px; margin: 0; letter-spacing: -.3px; }
+  .head { display: flex; align-items: center; gap: 9px; }
+  .mark { width: 30px; height: 30px; border-radius: 8px; background: #5c6ee0; color: #fff; display: grid; place-items: center; font-size: 17px; }
+  .sub { margin: 1px 0 0; color: #858d9e; font-size: 11px; }
+  .state { margin: 14px 0 10px; padding: 12px; background: #fff; border: 1px solid #e7e9f0; border-radius: 8px; }
+  .status-line { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #d29b4b; }
+  .dot.on { background: #3fbd90; }
+  .state p { margin: 6px 0 0; font-size: 11px; line-height: 1.45; color: #858d9e; }
+  .toggle { display: flex; align-items: center; justify-content: space-between; padding: 9px 2px; border-top: 1px solid #eceef4; font-size: 12px; color: #4b5568; }
+  .toggle input { accent-color: #5c6ee0; width: 15px; height: 15px; }
+  .section-title { margin: 14px 0 7px; font-size: 9px; letter-spacing: 1px; color: #9aa1b1; font-weight: 700; }
+  .detected { max-height: 270px; overflow: auto; }
+  .detected .item { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 7px; background: #fff; border: 1px solid #e7e9f0; border-radius: 6px; margin-bottom: 5px; }
+  .detected .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #4c5669; }
+  .detected .action { border: 1px solid #cfd7ef; border-radius: 4px; background: #eef1fe; color: #4d63c9; font-size: 10px; padding: 4px 7px; cursor: pointer; }
+  .detected .action:disabled { opacity: .55; cursor: default; }
+  .empty-detected { font-size: 11px; color: #98a0af; background: #fff; border: 1px dashed #e0e4ee; border-radius: 6px; padding: 12px; text-align: center; }
+  .quality-panel { flex-basis: 100%; margin-top: 3px; border-top: 1px solid #eceef4; padding-top: 7px; }
+  .quality-note { font-size: 10px; color: #8b93a4; margin: 0 0 6px; line-height: 1.45; }
+  .quality-option { display: flex; align-items: center; gap: 7px; width: 100%; text-align: left; border: 1px solid #e1e5ef; background: #fafbff; border-radius: 5px; padding: 6px 7px; margin-bottom: 4px; cursor: pointer; }
+  .quality-option:hover { border-color: #aab9e8; background: #f1f4ff; }
+  .quality-option:disabled { opacity: .55; cursor: not-allowed; }
+  .quality-option .q-main { flex: 1; min-width: 0; }
+  .quality-option b { display: block; font-size: 10px; color: #3f4a5e; }
+  .quality-option small { display: block; font-size: 9px; color: #8b93a4; margin-top: 1px; word-break: break-word; }
+  .quality-option span.dl { color: #4d63c9; font-size: 10px; }
+  .quality-error { color: #a35a44; font-size: 10px; line-height: 1.45; margin-top: 4px; }
+  .button { display: block; width: 100%; height: 34px; margin-top: 9px; border: 0; border-radius: 6px; background: #5c6ee0; color: #fff; font-weight: 600; font-size: 12px; cursor: pointer; }
+  .secondary { background: #fff; color: #586585; border: 1px solid #dfe3ed; font-weight: 500; }
+  .row { display: flex; gap: 7px; }
+  .row .button { margin-top: 0; }
+  .error { color: #a35a44; font-size: 10px; margin-top: 6px; word-break: break-word; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="mark">↓</div>
+    <div><h1>Meldrix</h1><p class="sub">Download Manager</p></div>
+  </div>
+
+  <div class="state">
+    <div class="status-line"><span class="dot" id="dot"></span><span id="status">Checking Meldrix…</span></div>
+    <p id="detail">Connecting to the desktop app automatically.</p>
+    <div class="error" id="error"></div>
+  </div>
+
+  <label class="toggle">Detect downloads automatically <input type="checkbox" id="intercept"></label>
+  <label class="toggle">Show button on videos <input type="checkbox" id="overlay"></label>
+
+  <div class="section-title">MEDIA ON THIS PAGE</div>
+  <div class="detected" id="detected"><div class="empty-detected">No downloadable media detected.</div></div>
+
+  <div class="row" style="margin-top:10px;">
+    <button class="button" id="open">Open Meldrix</button>
+    <button class="button secondary" id="retry">Reconnect</button>
+  </div>
+  <button class="button secondary" id="settings">Extension settings</button>
+
+  <script src="popup.js"></script>
+</body>
+</html>

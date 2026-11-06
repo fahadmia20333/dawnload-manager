@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Meldrix Download Manager",
+  "version": "0.2.0",
+  "description": "Send authorized browser downloads and direct HTML5 media to Meldrix.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArcGASbOTm1El64o5JeewNcMEW7CW/TeHsSUoUV9Kcwt32bL20tyhCo7xYuOCVz11UR5go57cZvg76JD+9pg80tav1ajWfsB1wjynmcbj5uBQxe5QbvHR0WCxQzIAuIOVjvOmr6JRl16RAVeH1NWB+xYMI0xTpExwBoH4ikckGKcURnHVGVZ46Fq2x0as57Zh6PZF3skoGT1B1V4hHjfRJncQdFTemBOTtp2AnR4UopogvfDe69CSGmt9J8auBA0xkudFOmXolf44I1EuQc1r165RAYKCvkBg+of5/rjkDVD00g0sJcHxoYPgSATkHM+UpC/vifyDtRwqLs0kES2ofwIDAQAB",
+  "permissions": ["alarms", "contextMenus", "downloads", "nativeMessaging", "scripting", "storage", "tabs", "webRequest"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_title": "Meldrix Download Manager", "default_popup": "popup.html" },
+  "content_scripts": [{ "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_idle" }],
+  "options_page": "popup.html"
+}
