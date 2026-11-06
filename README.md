@@ -35,11 +35,22 @@ No screenshots are currently included in the repository.
 
 ### Windows Installer
 
-The installer is **not currently published as a verified GitHub release asset**. The proposed `v1.0.0` URL was checked and returned not found. Visit the [project repository](https://github.com/fahadmia20333/download-manager) for release announcements; do not download an installer from an unverified mirror.
+A GitHub Release `v1.0.0` has been created, but the Windows installer and portable executable assets must be uploaded manually through the GitHub web interface. The release notes and source code are available; the EXE files will be published once assets are uploaded.
+
+For immediate use, the application can be built locally:
+
+```powershell
+npm run build-native-host
+npm run dist
+```
+
+This produces `release/MeldrixDownloadManager-Setup.exe` and `release/MeldrixDownloadManager-Portable.exe` from the local build.
+
+Once the GitHub Release assets are uploaded, direct download links will be available from the release page.
 
 ### Portable Version
 
-The portable executable is also **not currently published as a verified release asset**. A local build can be created with the instructions under [Build Instructions](#build-instructions).
+Same as the Windows Installer — the portable executable is built locally and can be extracted to any location. The release assets will be available from the GitHub Release page once uploaded.
 
 ### Browser Extension Setup
 
