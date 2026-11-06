@@ -31,8 +31,8 @@ Get Meldrix Download Manager for Windows.
 
 | 🖥️ Edition | 📋 Description | 📦 Download |
 |:---|:---|:---:|
-| **Windows Installer** | Standard Windows installation. Recommended for most users. | [⬇️ Download Setup](https://github.com/fahadmia20333/dawnload-manager/releases/download/v1.0.0/MeldrixDownloadManager-Setup.exe) |
-| **Portable Edition** | Run Meldrix without a traditional installation. | [⬇️ Download Portable](https://github.com/fahadmia20333/dawnload-manager/releases/download/v1.0.0/MeldrixDownloadManager-Portable.exe) |
+| **Windows Installer** | Standard Windows installation. Recommended for most users. | [⬇️ Download Setup](https://github.com/fahadmia20333/download-manager/releases/download/v1.0.0/MeldrixDownloadManager-Setup.exe) |
+| **Portable Edition** | Run Meldrix without a traditional installation. | [⬇️ Download Portable](https://github.com/fahadmia20333/download-manager/releases/download/v1.0.0/MeldrixDownloadManager-Portable.exe) |
 
 **Recommended:** Windows Setup Installer
 
@@ -484,7 +484,7 @@ Need help or found a bug?
 
 - 🐛 **Bug Reports:** [Open an Issue](https://github.com/fahadmia20333/download-manager/issues)
 - 💡 **Feature Requests:** [Submit a Feature Request](https://github.com/fahadmia20333/download-manager/issues)
-- 📦 **Downloads:** [Meldrix v1.0.0 Releases](https://github.com/fahadmia20333/dawnload-manager/releases/tag/v1.0.0)
+- 📦 **Downloads:** [Meldrix v1.0.0 Releases](https://github.com/fahadmia20333/download-manager/releases/tag/v1.0.0)
 - 💻 **Source Code:** [GitHub Repository](https://github.com/fahadmia20333/download-manager)
 
 ---
