@@ -468,9 +468,9 @@ export default function App() {
       { label: 'Queues', shortcut: '', action: () => setView('Queues') }
     ];
     return [
-      { label: 'GitHub Repository', shortcut: '', action: () => void openRepository('https://github.com/fahadmia20333/download-manager') },
+      { label: 'GitHub Repository', shortcut: '', action: () => void openRepository('https://github.com/fahadmia20333/dawnload-manager') },
       { label: 'Documentation / README', shortcut: '', action: () => void window.meldrix?.openReadme().catch(error => toast(error instanceof Error ? error.message : 'Could not open the README')) },
-      { label: 'Report an Issue', shortcut: '', action: () => void openRepository('https://github.com/fahadmia20333/download-manager/issues/new') },
+      { label: 'Report an Issue', shortcut: '', action: () => void openRepository('https://github.com/fahadmia20333/dawnload-manager/issues/new') },
       { separator: true },
       { label: 'Check for Updates', shortcut: '', action: () => void window.meldrix?.showUpdateInfo().catch(error => toast(error instanceof Error ? error.message : 'Could not show update information')) },
       { label: 'About Meldrix Download Manager', shortcut: '', action: () => void window.meldrix?.showAbout().catch(error => toast(error instanceof Error ? error.message : 'Could not show application information')) }

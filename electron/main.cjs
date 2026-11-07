@@ -1103,7 +1103,7 @@ ipcMain.handle('help:about', async () => {
     type: 'info',
     title: 'About Meldrix Download Manager',
     message: 'Meldrix Download Manager',
-    detail: `Version ${app.getVersion()}\nDownload manager for Windows.\n\nhttps://github.com/fahadmia20333/download-manager`
+    detail: `Version ${app.getVersion()}\nDownload manager for Windows.\n\nhttps://github.com/fahadmia20333/dawnload-manager`
   });
   return { ok: true };
 });

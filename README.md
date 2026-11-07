@@ -27,14 +27,20 @@ Get Meldrix Download Manager for Windows.
 
 <div align="center">
 
-### Choose Your Edition
+### GitHub Releases
 
-| 🖥️ Edition | 📋 Description | 📦 Download |
-|:---|:---|:---:|
-| **Windows Installer** | Standard Windows installation. Recommended for most users. | [⬇️ Download Setup](https://github.com/fahadmia20333/download-manager/releases/download/v1.0.0/MeldrixDownloadManager-Setup.exe) |
-| **Portable Edition** | Run Meldrix without a traditional installation. | [⬇️ Download Portable](https://github.com/fahadmia20333/download-manager/releases/download/v1.0.0/MeldrixDownloadManager-Portable.exe) |
+See the [published GitHub Releases](https://github.com/fahadmia20333/dawnload-manager/releases). The current published release has no downloadable assets.
 
-**Recommended:** Windows Setup Installer
+| 🖥️ Edition | 📦 Download |
+|:---|:---|
+| **Windows Installer (Setup)** | Not published yet |
+| **Portable Edition** | Not published yet |
+
+### AWS S3 Archives
+
+| 📦 Archive | Download |
+|:---|:---|
+| **ZIP archive** | Not published yet |
 
 </div>
 
@@ -115,21 +121,13 @@ Screenshots will be added here as the project interface evolves.
 
 ## 📖 Installation
 
-### 1. Windows Setup Installer (Recommended)
+### 1. Windows Setup Installer (Not published yet)
 
-1. Click the **Download Setup** link in the [Download section](#-download).
-2. Download `MeldrixDownloadManager-Setup.exe`.
-3. Open the downloaded installer.
-4. Follow the Windows installation wizard.
-5. Launch Meldrix Download Manager.
-6. Open **Settings → Browser Integration** to configure the browser extension.
+The installer is not available in the published GitHub release yet. Check the [GitHub Releases](https://github.com/fahadmia20333/dawnload-manager/releases) page for future published assets.
 
-### 2. Portable Edition
+### 2. Portable Edition (Not published yet)
 
-1. Download `MeldrixDownloadManager-Portable.exe`.
-2. Run the executable.
-3. Keep the application files in a permanent location.
-4. Launch Meldrix whenever you need it.
+The portable executable is not available in the published GitHub release yet. Check the [GitHub Releases](https://github.com/fahadmia20333/dawnload-manager/releases) page for future published assets.
 
 For browser integration, copy the bundled `extension` folder from the application's resources to a permanent location before loading it into your browser.
 
@@ -293,9 +291,9 @@ Meldrix-Download-Manager/
 ### 1. Clone the Repository
 
 ```powershell
-git clone https://github.com/fahadmia20333/download-manager.git
+git clone https://github.com/fahadmia20333/dawnload-manager.git
 
-cd download-manager
+cd dawnload-manager
 ```
 
 ### 2. Install Dependencies
@@ -482,10 +480,10 @@ Until a license is added, do not assume that the project grants permission to re
 
 Need help or found a bug?
 
-- 🐛 **Bug Reports:** [Open an Issue](https://github.com/fahadmia20333/download-manager/issues)
-- 💡 **Feature Requests:** [Submit a Feature Request](https://github.com/fahadmia20333/download-manager/issues)
-- 📦 **Downloads:** [Meldrix v1.0.0 Releases](https://github.com/fahadmia20333/download-manager/releases/tag/v1.0.0)
-- 💻 **Source Code:** [GitHub Repository](https://github.com/fahadmia20333/download-manager)
+- 🐛 **Bug Reports:** [Open an Issue](https://github.com/fahadmia20333/dawnload-manager/issues)
+- 💡 **Feature Requests:** [Submit a Feature Request](https://github.com/fahadmia20333/dawnload-manager/issues)
+- 📦 **Downloads:** [GitHub Releases](https://github.com/fahadmia20333/dawnload-manager/releases)
+- 💻 **Source Code:** [GitHub Repository](https://github.com/fahadmia20333/dawnload-manager)
 
 ---
 
