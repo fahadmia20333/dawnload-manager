@@ -4,4 +4,4 @@ The Chrome/Edge Native Messaging executable implements bridge protocol v2. It ac
 
 Supported operations: `hello` (desktop readiness), `ping`, `enqueue`, `show`, and `settings:update`. The host starts Meldrix if needed, waits up to 20 seconds for an actual desktop response, and uses bounded exponential retry. It never acknowledges an enqueue until the desktop acknowledges it.
 
-Build with `npm run build-native-host` from the repository root. The registered manifest must retain the extension's fixed allowed origin.
+Build with `npm run build-native-host` from the repository root. The Windows installer generates separate Chrome and Edge manifests from `extension-origins.json`; each browser manifest must allow the corresponding extension ID. When a store-issued ID differs from the development ID, update the browser manifest's public signing key and the matching configured origin before publishing a new desktop build.

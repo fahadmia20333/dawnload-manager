@@ -61,6 +61,7 @@ export default function App() {
   const [name, setName] = useState('');
   const [category, setCategory] = useState<Category>('All files');
   const [savePath, setSavePath] = useState('');
+  const [maxConcurrent, setMaxConcurrent] = useState(3);
   const [detected, setDetected] = useState<Detected | null>(null);
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
@@ -153,6 +154,10 @@ export default function App() {
     if (!window.meldrix) return;
     refresh();
     window.meldrix.getSetting('default_download_directory').then(value => setSavePath(value || '')).catch(() => {});
+    window.meldrix.getSetting('max_concurrent_downloads').then(value => {
+      const parsed = Number(value);
+      if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 8) setMaxConcurrent(parsed);
+    }).catch(() => {});
     window.meldrix.getSetting('start_with_windows').then(value => {
       if (value) setToggles(current => ({ ...current, startWithWindows: value === '1' }));
     }).catch(() => {});
@@ -171,14 +176,17 @@ export default function App() {
   }, [applyIntegration, openReview, refresh]);
 
   const visible = useMemo(() => downloads.filter(d => {
-    const matchesView = view === 'All files' || view === 'Queues'
+    const matchesView = view === 'All files'
       ? true
+      : view === 'Queues'
+        ? d.status === 'queued'
       : view === 'Finished'
         ? d.status === 'completed'
         : view === 'Unfinished'
           ? d.status !== 'completed'
           : d.category === view;
-    return matchesView && d.name.toLowerCase().includes(query.toLowerCase());
+    const search = query.trim().toLowerCase();
+    return matchesView && (!search || d.name.toLowerCase().includes(search) || d.url.toLowerCase().includes(search) || d.category.toLowerCase().includes(search));
   }), [downloads, view, query]);
   const selected = useMemo(() => downloads.filter(row => selectedIds.has(row.id)), [downloads, selectedIds]);
   const active = downloads.filter(d => d.status === 'downloading');
@@ -194,20 +202,24 @@ export default function App() {
     setDialog('new');
   };
 
-  const closeNew = () => {
+  const closeNew = useCallback(() => {
     if (reviewId) window.meldrix?.dismissReview(reviewId);
     setDialog(null);
     setUrl('');
     setName('');
     setDetected(null);
     setReviewId(null);
-  };
+  }, [reviewId]);
 
   const chooseFolder = async () => {
-    const selected = await window.meldrix?.selectFolder();
-    if (selected) {
-      setSavePath(selected);
-      await window.meldrix?.setSetting('default_download_directory', selected);
+    try {
+      const selected = await window.meldrix?.selectFolder();
+      if (selected) {
+        await window.meldrix?.setSetting('default_download_directory', selected);
+        setSavePath(selected);
+      }
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Could not save the download folder');
     }
   };
 
@@ -237,7 +249,7 @@ export default function App() {
         category: (created.category || finalCategory) as Category,
         kind: created.kind === 'hls' ? 'hls' : 'file',
         size: Number(created.size) || detected?.size || 0,
-        downloaded: 0,
+        downloaded: Number(created.downloaded) || 0,
         speed: 0,
         status: created.status || (startNow ? 'downloading' : 'queued'),
         added: 'Just now',
@@ -294,6 +306,14 @@ export default function App() {
       setToggles(current => ({ ...current, [key]: !value }));
     }
   };
+  const updateMaxConcurrent = async (value: number) => {
+    try {
+      await window.meldrix?.setSetting('max_concurrent_downloads', String(value));
+      setMaxConcurrent(value);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Could not save the simultaneous download limit');
+    }
+  };
 
   const selectAllVisible = () => setSelectedIds(new Set(visible.map(row => row.id)));
   const clearSelection = () => setSelectedIds(new Set());
@@ -319,7 +339,7 @@ export default function App() {
   };
 
   const resumeTasks = async (rows: Download[], label: string) => {
-    const applicable = rows.filter(row => (row.status === 'paused' || row.status === 'queued') && !pendingToggle.current.has(row.id));
+    const applicable = rows.filter(row => ['paused', 'queued', 'failed'].includes(row.status) && !pendingToggle.current.has(row.id));
     if (!applicable.length) { toast('No paused or queued tasks are selected'); return; }
     applicable.forEach(row => pendingToggle.current.add(row.id));
     const results = await Promise.allSettled(applicable.map(row => window.meldrix?.resumeDownload(row.id)));
@@ -421,6 +441,8 @@ export default function App() {
         setTopMenu(null);
         setMenu(null);
         setTaskDetails(null);
+        if (dialog === 'new') closeNew();
+        else if (dialog) setDialog(null);
       } else if (!typing && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'n') {
         event.preventDefault(); startNew();
       } else if (!typing && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
@@ -435,12 +457,11 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selected, visible, downloads]);
+  }, [selected, visible, downloads, dialog, closeNew]);
 
   const menuItems = (name: string) => {
     const hasSelection = selected.length > 0;
     const hasDownloading = selected.some(row => row.status === 'downloading');
-    const hasResumable = selected.some(row => row.status === 'paused' || row.status === 'queued');
     if (name === 'File') return [
       { label: 'New Download', shortcut: 'Ctrl+N', action: startNew },
       { label: 'Open Download Folder', shortcut: '', action: openToolsFolder },
@@ -452,13 +473,28 @@ export default function App() {
       { label: 'Browser Integration Settings', shortcut: '', action: openSettings },
       { label: 'Settings', shortcut: '', action: openSettings }
     ];
+    if (name === 'Edit') return [
+      { label: 'Select All Visible', shortcut: 'Ctrl+A', action: selectAllVisible, disabled: !visible.length },
+      { label: 'Clear Selection', shortcut: '', action: clearSelection, disabled: !selected.length },
+      { label: 'Delete Selected', shortcut: 'Delete', action: () => void deleteTasks(selected), disabled: !selected.length }
+    ];
+    if (name === 'View') return nav.map(item => ({
+      label: `${view === item.label ? '✓ ' : ''}${item.label}`,
+      shortcut: '',
+      action: () => setView(item.label)
+    }));
+    if (name === 'Window') return [
+      { label: 'Minimize', shortcut: '', action: () => void window.meldrix?.minimizeWindow() },
+      { label: 'Toggle Maximize', shortcut: '', action: () => void window.meldrix?.toggleMaximizeWindow() },
+      { label: 'Hide to Tray', shortcut: '', action: () => void window.meldrix?.hideWindow() }
+    ];
     if (name === 'Tasks') return [
       { label: 'New Download', shortcut: 'Ctrl+N', action: startNew },
       { label: 'Open Selected', shortcut: 'Enter', action: openSelected, disabled: selected.length !== 1 },
       { label: 'Task Details', shortcut: 'Alt+Enter', action: () => selected.length ? setTaskDetails(selected) : toast('Select a task to view details'), disabled: !hasSelection },
       { separator: true },
       { label: 'Pause Selected', shortcut: '', action: () => void pauseTasks(selected, 'Pause selected'), disabled: !hasDownloading },
-      { label: 'Resume Selected', shortcut: '', action: () => void resumeTasks(selected, 'Resume selected'), disabled: !hasResumable },
+      { label: 'Resume / Retry Selected', shortcut: '', action: () => void resumeTasks(selected, 'Resume selected'), disabled: !selected.some(row => ['paused', 'queued', 'failed'].includes(row.status)) },
       { label: 'Stop Selected', shortcut: '', action: () => void pauseTasks(selected, 'Stop selected'), disabled: !hasDownloading },
       { label: 'Start Queue', shortcut: '', action: startQueue },
       { label: 'Stop Queue', shortcut: '', action: stopQueue },
@@ -479,7 +515,7 @@ export default function App() {
 
   return <div className="idm-app" onClick={() => { if (menu) setMenu(null); if (topMenu) setTopMenu(null); }}>
     <header className="idm-titlebar"><div className="idm-brand"><span className="idm-logo"><Icon name="arrow" size={16}/></span><b>Meldrix</b><small>DOWNLOAD MANAGER</small></div><div className="idm-menus">
-      {(['File', 'Tasks', 'Tools', 'Help'] as const).map(label => <div className="top-menu" key={label}>
+      {(['File', 'Edit', 'View', 'Tasks', 'Tools', 'Window', 'Help'] as const).map(label => <div className="top-menu" key={label}>
         <button type="button" className={topMenu === label ? 'top-menu-trigger active' : 'top-menu-trigger'} aria-haspopup="menu" aria-expanded={topMenu === label} onClick={event => { event.stopPropagation(); setTopMenu(current => current === label ? null : label); setMenu(null); }}>{label}</button>
         {topMenu === label && <div className="top-menu-popup" role="menu" onClick={event => event.stopPropagation()}>
           {menuItems(label).map((item: any, index: number) => item.separator
@@ -487,10 +523,14 @@ export default function App() {
             : <button type="button" role="menuitem" key={`${label}-${item.label}`} disabled={!!item.disabled} onClick={() => { setTopMenu(null); item.action(); }}><span>{item.label}</span>{item.shortcut && <small>{item.shortcut}</small>}</button>)}
         </div>}
       </div>)}
-    </div><div className="idm-window-actions"><span>—</span><span>□</span><span>×</span></div></header>
+    </div><div className="idm-window-actions">
+      <button aria-label="Minimize" title="Minimize" onClick={() => void window.meldrix?.minimizeWindow()}>—</button>
+      <button aria-label="Toggle maximize" title="Toggle maximize" onClick={() => void window.meldrix?.toggleMaximizeWindow()}>□</button>
+      <button aria-label="Hide to tray" title="Hide to tray" onClick={() => void window.meldrix?.hideWindow()}>×</button>
+    </div></header>
     <div className="idm-toolbar">
       <Toolbar icon="plus" label="New Download" primary onClick={startNew}/>
-      <Toolbar icon="play" label="Resume" onClick={resumeAll} disabled={!downloads.some(row => row.status === 'paused' || row.status === 'queued')}/>
+      <Toolbar icon="play" label="Resume / Retry" onClick={resumeAll} disabled={!downloads.some(row => ['paused', 'queued', 'failed'].includes(row.status))}/>
       <Toolbar icon="pause" label="Pause" onClick={pauseAll} disabled={!active.length}/>
       <Toolbar icon="zap" label="Start Queue" onClick={startQueue}/>
       <Toolbar icon="close" label="Stop Queue" onClick={stopQueue} disabled={!active.length && !downloads.some(row => row.status === 'queued')}/>
@@ -512,13 +552,14 @@ export default function App() {
           {visible.map(d => {
             const remaining = d.status === 'downloading' && d.speed > 0 && d.size > d.downloaded ? `${Math.max(1, Math.ceil((d.size - d.downloaded) / d.speed))}s` : d.status === 'queued' ? 'Waiting' : '—';
             const interactive = d.status === 'downloading' || d.status === 'paused' || d.status === 'queued';
-            const fileTitle = d.status === 'downloading' ? 'Click to pause' : d.status === 'paused' ? 'Click to resume' : d.status === 'queued' ? 'Click to start' : d.status === 'completed' ? 'Download complete' : 'Download failed';
+            const fileTitle = d.status === 'downloading' ? 'Click to pause' : d.status === 'paused' ? 'Click to resume' : d.status === 'queued' ? 'Click to start' : d.status === 'completed' ? 'Click to open file' : 'Click to view task details';
              return <div className={`download-row ${selectedIds.has(d.id) ? 'selected' : ''}`} key={d.id} aria-selected={selectedIds.has(d.id)} onClick={event => { if (event.ctrlKey || event.metaKey) { event.stopPropagation(); toggleSelectedRow(d.id, true); } }} onContextMenu={e => { e.preventDefault(); if (!selectedIds.has(d.id)) setSelectedIds(new Set([d.id])); setMenu(d.id); }}>
-               <button type="button" className={`file-cell name-col ${interactive ? 'clickable' : 'inactive'}`} title={`${fileTitle} · Ctrl+click to select`} aria-label={`${fileTitle}; Ctrl+click to select task`} onClick={e => { e.stopPropagation(); if (e.ctrlKey || e.metaKey) toggleSelectedRow(d.id, true); else if (interactive) toggle(d); }}><span className={'extension ' + d.type.toLowerCase()}>{d.type.slice(0, 3)}</span><div><b>{d.name}</b><small>{d.url.replace(/^https?:\/\//, '').split('/')[0]}</small><div className="mini-progress"><i style={{ width: `${percent(d)}%` }}/></div></div></button>
+               <button type="button" className={`file-cell name-col ${interactive || d.status === 'completed' ? 'clickable' : ''}`} title={`${fileTitle} · Ctrl+click to select`} aria-label={`${fileTitle}; Ctrl+click to select task`} onClick={e => { e.stopPropagation(); if (e.ctrlKey || e.metaKey) toggleSelectedRow(d.id, true); else if (interactive) toggle(d); else if (d.status === 'completed') void openTask(d); else setTaskDetails([d]); }}><span className={'extension ' + d.type.toLowerCase()}>{d.type.slice(0, 3)}</span><div><b>{d.name}</b><small>{d.url.replace(/^https?:\/\//, '').split('/')[0]}</small><div className="mini-progress"><i style={{ width: `${percent(d)}%` }}/></div></div></button>
                <span className="dim">{fmt(d.size)}</span><Status value={d.status}/><span className="dim">{d.status === 'downloading' ? `${fmt(d.speed)}/s` : '—'}</span><span className="dim">{remaining}</span><span className="dim">{d.added}</span>
                <button className="row-menu" aria-label={`Actions for ${d.name}`} onClick={event => { event.stopPropagation(); if (!selectedIds.has(d.id)) setSelectedIds(new Set([d.id])); setMenu(menu === d.id ? null : d.id); }}><Icon name="more" size={16}/>{menu === d.id && <div className="context-menu" onClick={event => event.stopPropagation()}>
                  <button onClick={() => { setMenu(null); void openTask(d); }}>{d.status === 'completed' ? 'Open file' : 'Open source URL'}</button>
                  {interactive && <button onClick={() => { setMenu(null); d.status === 'downloading' ? void pauseTasks([d], 'Task') : void resumeTasks([d], 'Task'); }}>{d.status === 'downloading' ? 'Pause download' : d.status === 'queued' ? 'Start download' : 'Resume download'}</button>}
+                 {d.status === 'failed' && <button onClick={() => { setMenu(null); void resumeTasks([d], 'Retry'); }}>Retry download</button>}
                  <button onClick={() => { setMenu(null); setTaskDetails([d]); }}>Task details</button>
                  <button onClick={() => { setMenu(null); void openTaskFolder(d); }}>Open download folder</button>
                  <button onClick={() => { setMenu(null); void deleteTasks([d]); }}>Delete task</button>
@@ -561,7 +602,10 @@ export default function App() {
       connected={connected}
       toggles={toggles}
       savePath={savePath}
+      maxConcurrent={maxConcurrent}
       onToggle={updateToggle}
+      onMaxConcurrentChange={updateMaxConcurrent}
+      chooseDownloadFolder={chooseFolder}
       refresh={() => window.meldrix?.integrationStatus().then(applyIntegration).catch(() => {})}
       openFolder={() => window.meldrix?.openExtensionFolder().catch(() => {})}
     />}
@@ -616,7 +660,7 @@ function NewDownloadDialog({ url, name, category, detected, savePath, busy, from
     </div>
     <div className="form-grid">
       <div className="folder-field"><span>SAVE TO</span><div className="path-display"><Icon name="folder" size={15}/><span title={savePath}>{savePath || 'Application default folder'}</span><button type="button" onClick={onChooseFolder}><Icon name="folder" size={13}/> Choose Folder</button></div></div>
-      <label>CONNECTIONS<select defaultValue="8"><option>1</option><option>2</option><option>4</option><option>8</option><option>16</option></select></label>
+      <div className="connection-note">Downloads currently use a single connection. Resume is supported when the server accepts byte ranges.</div>
     </div>
     <div className="dialog-actions">
       <button onClick={onClose} disabled={busy}>Cancel</button>
@@ -626,28 +670,27 @@ function NewDownloadDialog({ url, name, category, detected, savePath, busy, from
   </div></div>;
 }
 
-function Settings({ close, integration, connected, toggles, savePath, onToggle, refresh, openFolder }: {
-  close: () => void; integration: any; connected: boolean; toggles: Toggles; savePath: string;
-  onToggle: (key: keyof Toggles, value: boolean) => void; refresh: () => void; openFolder: () => void;
+function Settings({ close, integration, connected, toggles, savePath, maxConcurrent, onToggle, onMaxConcurrentChange, chooseDownloadFolder, refresh, openFolder }: {
+  close: () => void; integration: any; connected: boolean; toggles: Toggles; savePath: string; maxConcurrent: number;
+  onToggle: (key: keyof Toggles, value: boolean) => void; onMaxConcurrentChange: (value: number) => void; chooseDownloadFolder: () => void; refresh: () => void; openFolder: () => void;
 }) {
   const chrome = integration?.chrome || {};
   const edge = integration?.edge || {};
   const browserPill = (browser: any) => {
-    if (!browser.installed) return <span className="pill bad">Not installed</span>;
-    if (browser.connected) return <span className="pill ok">Connected</span>;
-    if (!browser.registered) return <span className="pill bad">Error</span>;
-    return <span className="pill warn">Installed</span>;
+    if (browser.connected) return <span className="pill ok">Extension connected</span>;
+    if (!browser.installed) return <span className="pill bad">Browser not installed</span>;
+    if (!browser.registered) return <span className="pill bad">Host not registered</span>;
+    return <span className="pill warn">Extension not detected</span>;
   };
   return <div className="idm-overlay"><div className="idm-dialog settings-dialog">
     <DialogHead title="Meldrix Settings" subtitle="Configure your download manager" close={close}/>
-    <div className="settings-tabs"><b>General</b><span>Downloads</span><span>Connections</span><span>Browser Integration</span><span>Notifications</span><span>Appearance</span><span>Advanced</span></div>
     <div className="setting-body">
       <h3>Browser Integration</h3>
       <p>Native Messaging is registered by the installer. Load the bundled extension once in Chrome or Edge; no localhost port or separate server is used.</p>
-      <div className="browser-card"><div className="browser-icon">C</div><div><b>Google Chrome</b><small>{chrome.connected ? 'Extension connected' : chrome.registered ? 'Native host registered' : 'Native host registration missing'}</small></div>{browserPill(chrome)}</div>
-      <div className="browser-card"><div className="browser-icon edge">e</div><div><b>Microsoft Edge</b><small>{edge.connected ? 'Extension connected' : edge.registered ? 'Native host registered' : 'Native host registration missing'}</small></div>{browserPill(edge)}</div>
+      <div className="browser-card"><div className="browser-icon">C</div><div><b>Google Chrome</b><small>{chrome.installed ? 'Browser installed' : 'Browser not detected'} · {chrome.registered ? 'Native host registered' : 'Native host not registered'}{chrome.lastConnectedAt ? ` · Last connection ${new Date(chrome.lastConnectedAt).toLocaleTimeString()}` : ''}</small></div>{browserPill(chrome)}</div>
+      <div className="browser-card"><div className="browser-icon edge">e</div><div><b>Microsoft Edge</b><small>{edge.installed ? 'Browser installed' : 'Browser not detected'} · {edge.registered ? 'Native host registered' : 'Native host not registered'}{edge.lastConnectedAt ? ` · Last connection ${new Date(edge.lastConnectedAt).toLocaleTimeString()}` : ''}</small></div>{browserPill(edge)}</div>
       <div className={`integration-line ${connected ? 'ok' : 'idle'}`}><i/><span>{connected ? 'Extension connected to the desktop app' : 'No recent extension connection'}</span><small>{integration?.lastNativeAt ? `Last contact ${new Date(integration.lastNativeAt).toLocaleTimeString()}` : 'Open the extension popup to test'}</small></div>
-      <div className="row-actions"><button className="compact-button" onClick={openFolder}><Icon name="folder" size={14}/> Open extension folder</button><button className="compact-button" onClick={refresh}><Icon name="zap" size={14}/> Re-check status</button></div>
+      <div className="row-actions"><button className="compact-button" onClick={openFolder}><Icon name="folder" size={14}/> Open extension folder</button><button className="compact-button" onClick={refresh}><Icon name="zap" size={14}/> Refresh status</button></div>
 
       <h3>Detect downloads</h3>
       <label className="setting-line"><span>Automatically detect browser downloads<small>Send supported files to Meldrix instead of the browser</small></span><input type="checkbox" checked={toggles.autoDetect} onChange={e => onToggle('autoDetect', e.target.checked)}/></label>
@@ -655,8 +698,9 @@ function Settings({ close, integration, connected, toggles, savePath, onToggle, 
       <label className="setting-line"><span>Confirm before downloading<small>Open the Add Download dialog for every browser request</small></span><input type="checkbox" checked={toggles.confirmBefore} onChange={e => onToggle('confirmBefore', e.target.checked)}/></label>
 
       <h3>Application</h3>
+      <label className="setting-line"><span>Maximum simultaneous downloads<small>Additional active downloads wait in the queue</small></span><select className="setting-select" value={maxConcurrent} onChange={e => onMaxConcurrentChange(Number(e.target.value))}>{[1, 2, 3, 4, 5, 6, 7, 8].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
       <label className="setting-line"><span>Start Meldrix with Windows<small>Keeps the tray app ready for browser handoff</small></span><input type="checkbox" checked={toggles.startWithWindows} onChange={e => onToggle('startWithWindows', e.target.checked)}/></label>
-      <div className="setting-line"><span>Default download folder</span><b>{savePath || 'Windows Downloads folder'}</b></div>
+      <div className="setting-line"><span>Default download folder<small>Used for new downloads unless changed in the download dialog</small></span><b className="setting-path">{savePath || 'Windows Downloads folder'}</b><button className="compact-button" onClick={chooseDownloadFolder}>Change</button></div>
 
       <details className="troubleshooting">
         <summary>Native Messaging details</summary>
@@ -681,7 +725,7 @@ function Wizard({ close, integration, connected, openFolder, refresh }: {
     <div className="wizard-steps"><b className={step >= 1 ? 'on' : ''}>1 Welcome</b><b className={step >= 2 ? 'on' : ''}>2 Folder</b><b className={step >= 3 ? 'on' : ''}>3 Browser</b><b className={step >= 4 ? 'on' : ''}>4 Finish</b></div>
     {step === 1 && <div className="wizard-page"><Icon name="download" size={34}/><h2>Welcome to Meldrix Download Manager</h2><p>Fast, secure downloads for your Windows desktop. The browser extension hands supported downloads to this app automatically.</p></div>}
     {step === 2 && <div className="wizard-page"><Icon name="folder" size={34}/><h2>Choose your download folder</h2><p>Files are saved to your configured folder. You can change it any time from the Add Download dialog.</p><div className="folder-choice"><Icon name="folder" size={16}/> Windows Downloads folder</div></div>}
-    {step === 3 && <div className="wizard-page"><Icon name="grid" size={34}/><h2>Install the browser extension</h2><p>Open the extension folder, then in Chrome or Edge open Extensions, enable Developer mode, and choose Load unpacked. Select the <b>extension</b> folder.</p><div className="browser-card"><div className="browser-icon">C</div><div><b>Google Chrome</b><small>{chrome.connected ? 'Extension connected' : chrome.installed ? (chrome.registered ? 'Native Messaging registered' : 'Host not registered') : 'Chrome not installed'}</small></div><span className={`pill ${chrome.connected ? 'ok' : !chrome.installed || !chrome.registered ? 'bad' : 'warn'}`}>{chrome.connected ? 'Connected' : !chrome.installed ? 'Not installed' : !chrome.registered ? 'Error' : 'Installed'}</span></div><div className="browser-card"><div className="browser-icon edge">e</div><div><b>Microsoft Edge</b><small>{edge.connected ? 'Extension connected' : edge.installed ? (edge.registered ? 'Native Messaging registered' : 'Host not registered') : 'Edge not installed'}</small></div><span className={`pill ${edge.connected ? 'ok' : !edge.installed || !edge.registered ? 'bad' : 'warn'}`}>{edge.connected ? 'Connected' : !edge.installed ? 'Not installed' : !edge.registered ? 'Error' : 'Installed'}</span></div><div className="row-actions"><button className="compact-button" onClick={openFolder}><Icon name="folder" size={14}/> Open extension folder</button><button className="compact-button" onClick={refresh}><Icon name="zap" size={14}/> Re-check</button></div></div>}
+    {step === 3 && <div className="wizard-page"><Icon name="grid" size={34}/><h2>Install the browser extension</h2><p>Open the bundled extension folders, then in Chrome or Edge open Extensions, enable Developer mode, and choose Load unpacked. Select the matching <b>chrome</b> or <b>edge</b> folder. The installer cannot silently install a browser extension.</p><div className="browser-card"><div className="browser-icon">C</div><div><b>Google Chrome</b><small>{chrome.connected ? 'Extension connected' : chrome.installed ? (chrome.registered ? 'Native Messaging registered' : 'Host not registered') : 'Chrome not installed'}</small></div><span className={`pill ${chrome.connected ? 'ok' : !chrome.installed || !chrome.registered ? 'bad' : 'warn'}`}>{chrome.connected ? 'Connected' : !chrome.installed ? 'Not installed' : !chrome.registered ? 'Error' : 'Host registered'}</span></div><div className="browser-card"><div className="browser-icon edge">e</div><div><b>Microsoft Edge</b><small>{edge.connected ? 'Extension connected' : edge.installed ? (edge.registered ? 'Native Messaging registered' : 'Host not registered') : 'Edge not installed'}</small></div><span className={`pill ${edge.connected ? 'ok' : !edge.installed || !edge.registered ? 'bad' : 'warn'}`}>{edge.connected ? 'Connected' : !edge.installed ? 'Not installed' : !edge.registered ? 'Error' : 'Host registered'}</span></div><div className="row-actions"><button className="compact-button" onClick={openFolder}><Icon name="folder" size={14}/> Open extension folders</button><button className="compact-button" onClick={refresh}><Icon name="zap" size={14}/> Re-check</button></div></div>}
     {step === 4 && <div className="wizard-page"><Icon name="check" size={34}/><h2>{connected ? 'Browser integration is connected' : 'Finish setup'}</h2><p>{connected ? 'The extension has contacted Meldrix through Native Messaging.' : 'Open Chrome or Edge and click the Meldrix toolbar icon. Connection recovery runs automatically. Protected or DRM media is not supported.'}</p></div>}
     <div className="wizard-actions"><button onClick={close}>Skip setup</button><button className="accent-button" onClick={() => step < 4 ? setStep(step + 1) : close()}>{step < 4 ? 'Continue' : 'Open dashboard'}</button></div>
   </div></div>;

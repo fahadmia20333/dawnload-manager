@@ -35,12 +35,15 @@ See the [published GitHub Releases](https://github.com/fahadmia20333/dawnload-ma
 |:---|:---|
 | **Windows Installer (Setup)** | Not published yet |
 | **Portable Edition** | Not published yet |
+| **Chrome Extension** | Not published in the Chrome Web Store yet |
+| **Edge Extension** | Not published in Microsoft Edge Add-ons yet |
+| **Source Code** | [Official GitHub repository](https://github.com/fahadmia20333/dawnload-manager) |
 
 ### AWS S3 Archives
 
 | 📦 Archive | Download |
 |:---|:---|
-| **ZIP archive** | Not published yet |
+| **Source archive** | Not verified — this repository has no S3 inventory or backend configuration |
 
 </div>
 
@@ -129,7 +132,7 @@ The installer is not available in the published GitHub release yet. Check the [G
 
 The portable executable is not available in the published GitHub release yet. Check the [GitHub Releases](https://github.com/fahadmia20333/dawnload-manager/releases) page for future published assets.
 
-For browser integration, copy the bundled `extension` folder from the application's resources to a permanent location before loading it into your browser.
+The installer registers the Native Messaging Host for Chrome and Edge, but browser policies do not permit this installer to silently install an extension. After installation, use **Settings → Browser Integration → Open extension folders**, then load the matching `chrome` or `edge` folder through the browser's Developer mode. Do not select the parent `extensions` folder.
 
 ### 3. Browser Extension Setup
 
@@ -138,7 +141,7 @@ For browser integration, copy the bundled `extension` folder from the applicatio
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked**.
-4. Select the Meldrix `extension` folder.
+4. Select the `extensions\chrome` folder opened from Meldrix.
 5. Make sure the extension is enabled.
 
 **Microsoft Edge**
@@ -146,7 +149,7 @@ For browser integration, copy the bundled `extension` folder from the applicatio
 1. Open `edge://extensions`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked**.
-4. Select the Meldrix `extension` folder.
+4. Select the `extensions\edge` folder opened from Meldrix.
 5. Make sure the extension is enabled.
 
 After setup, open the Meldrix extension popup. It should report a connection after a successful Native Messaging handshake.
@@ -226,6 +229,8 @@ HLS pause and resume currently restart the stream from the beginning.
 
 - Per-task multi-connection downloads are not implemented.
 - Download speed limits are not implemented.
+- Scheduled downloads are not implemented.
+- Simultaneous downloads are limited to 1–8 tasks and configured in Settings.
 - Direct-file resume depends on server HTTP Range support.
 - HLS resume restarts the stream.
 - HLS output is not remuxed.
@@ -302,13 +307,21 @@ cd dawnload-manager
 npm install
 ```
 
-### 3. Start Development Mode
+### 3. Run Automated Tests
+
+```powershell
+npm test
+```
+
+The test suite uses a local HTTP server to verify direct downloads, progress with unknown file sizes, byte-range pause/resume, retry after failure, duplicate names, queue limits, and interrupted-task recovery.
+
+### 4. Start Development Mode
 
 ```powershell
 npm run dev
 ```
 
-### 4. Build the Native Messaging Host
+### 5. Build the Native Messaging Host
 
 ```powershell
 npm run build-native-host
@@ -327,8 +340,24 @@ npm run native-host
 ### Build the Application
 
 ```powershell
-npm run build
+npm run build:desktop
 ```
+
+### Build standalone browser packages
+
+```powershell
+npm run build:chrome
+npm run build:edge
+npm run build:extensions
+```
+
+Each command produces a separately loadable unpacked package and a ZIP with `manifest.json` at its root:
+
+- `dist\extensions\chrome\Meldrix-Chrome-Extension.zip`
+- `dist\extensions\edge\Meldrix-Edge-Extension.zip`
+- Unpacked folders: `dist\extensions\chrome\unpacked` and `dist\extensions\edge\unpacked`
+
+The packages share the existing extension implementation, but use separate manifests and browser packages. Both currently use the same development-key ID. If either store issues a different ID, update that browser's public `key` in its manifest and the corresponding value in `native-host\extension-origins.json` before rebuilding. No store listing is published or approved.
 
 ### Build the Native Messaging Host
 
@@ -339,7 +368,13 @@ npm run build-native-host
 ### Create Windows Installer and Portable Builds
 
 ```powershell
-npm run dist
+npm run build:installer
+```
+
+This builds the x64 NSIS Setup installer in `release\MeldrixDownloadManager-Setup.exe`. To also produce the optional portable build and both browser packages:
+
+```powershell
+npm run build:all
 ```
 
 ### Build Individual Packages

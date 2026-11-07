@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meldrix Extension Settings</title>
+  <style>
+    :root { color-scheme: light dark; font: 14px "Segoe UI", sans-serif; background: #10141d; color: #e8edf7; }
+    body { max-width: 720px; margin: 40px auto; padding: 0 24px; }
+    header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+    .mark { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 12px; background: #596fe2; color: white; font-size: 24px; }
+    h1 { margin: 0; font-size: 22px; } header p { margin: 4px 0 0; color: #9da8bb; }
+    section { margin: 14px 0; padding: 18px; border: 1px solid #2a3241; border-radius: 12px; background: #171d28; }
+    h2 { margin: 0 0 14px; font-size: 15px; }
+    label { display: flex; justify-content: space-between; gap: 20px; padding: 12px 0; border-top: 1px solid #293141; }
+    label span { display: block; } small { display: block; margin-top: 5px; color: #9da8bb; line-height: 1.5; }
+    input { accent-color: #7185f0; width: 17px; height: 17px; flex: 0 0 auto; }
+    button { border: 1px solid #3b4965; border-radius: 7px; background: #232d40; color: inherit; padding: 9px 13px; cursor: pointer; }
+    button:hover { background: #2d3951; } .actions { display: flex; gap: 9px; }
+    #status { margin: 12px 0 0; color: #aab6cb; line-height: 1.5; } #status[data-state="error"] { color: #ffaaa0; }
+    footer { color: #9da8bb; font-size: 12px; line-height: 1.6; margin: 20px 2px; }
+  </style>
+</head>
+<body>
+  <header><div class="mark">↓</div><div><h1>Meldrix Extension Settings</h1><p>Browser handoff preferences</p></div></header>
+  <section>
+    <h2>Download capture</h2>
+    <label><span>Capture supported downloads automatically<small>Only supported HTTP/HTTPS file types are considered.</small></span><input id="intercept" type="checkbox"></label>
+    <label><span>Show media controls on supported players<small>Direct media and readable, unencrypted HLS VOD only. DRM and access controls are not bypassed.</small></span><input id="overlay" type="checkbox"></label>
+    <label><span>Confirm before sending to Meldrix<small>Keep this enabled if you want to approve each browser handoff.</small></span><input id="confirmBeforeDownload" type="checkbox"></label>
+  </section>
+  <section>
+    <h2>Desktop connection</h2>
+    <p id="status" role="status">Checking the Native Messaging connection…</p>
+    <div class="actions"><button id="test" type="button">Test connection</button><button id="help" type="button">Open setup help</button></div>
+  </section>
+  <footer>
+    Meldrix sends supported download URLs and limited file metadata to the installed desktop application through browser Native Messaging. It does not read or transmit cookies, passwords, or page text. Website requests are inspected only to discover supported downloads and media sources. You remain responsible for having permission to download content.
+  </footer>
+  <script src="options.js"></script>
+</body>
+</html>

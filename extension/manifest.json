@@ -9,5 +9,5 @@
   "background": { "service_worker": "background.js", "type": "module" },
   "action": { "default_title": "Meldrix Download Manager", "default_popup": "popup.html" },
   "content_scripts": [{ "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_idle" }],
-  "options_page": "popup.html"
+  "options_page": "options.html"
 }

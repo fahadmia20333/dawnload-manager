@@ -7,22 +7,24 @@ const { execFileSync, spawn } = require('child_process');
 const { pipeline } = require('stream/promises');
 const initSqlJs = require('sql.js');
 const log = require('electron-log');
+const { uniqueDownloadName, parseContentRange, assertCompleteFile } = require('./download-utils.cjs');
+const EXTENSION_IDS = require('../native-host/extension-origins.json');
 
 const PIPE_NAME = '\\\\.\\pipe\\meldrix-download-manager';
 const PROTOCOL_VERSION = 2;
 const NATIVE_HOST_VERSION = '2.0.0';
-const EXTENSION_ID = 'lhnjhjehjjocnjjfgnpliffgochpgikk';
 const HOST_NAME = 'com.meldrix.downloadmanager';
-const REGISTRY_KEYS = [
-  `HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\${HOST_NAME}`,
-  `HKCU\\Software\\Microsoft\\Edge\\NativeMessagingHosts\\${HOST_NAME}`
-];
+const REGISTRY_KEYS = {
+  chrome: `HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\${HOST_NAME}`,
+  edge: `HKCU\\Software\\Microsoft\\Edge\\NativeMessagingHosts\\${HOST_NAME}`
+};
 const DEFAULT_SETTINGS = {
   default_download_directory: '',
   auto_detect_downloads: '1',
   show_video_button: '1',
   confirm_before_download: '1',
-  start_with_windows: '1'
+  start_with_windows: '1',
+  max_concurrent_downloads: '3'
 };
 
 let win;
@@ -35,11 +37,13 @@ let latestReview = null;
 let integrationTimer = null;
 let pipeServer = null;
 let nativeReadyAt = 0;
+let dbSaveTimer = null;
 const active = new Map();
 const pendingReviews = new Map();
 const recentNative = new Map();
 const nativeConnections = new Set();
 const pendingResumes = new Set();
+const autoStartQueue = new Set();
 
 const dataDir = () => app.getPath('userData');
 
@@ -54,12 +58,29 @@ process.on('uncaughtException', error => log.error('uncaughtException', error));
 process.on('unhandledRejection', reason => log.error('unhandledRejection', reason));
 
 function saveDb() {
-  fs.writeFileSync(path.join(dataDir(), 'meldrix.sqlite'), Buffer.from(db.export()));
+  const file = path.join(dataDir(), 'meldrix.sqlite');
+  const temporary = `${file}.tmp`;
+  fs.writeFileSync(temporary, Buffer.from(db.export()));
+  fs.renameSync(temporary, file);
 }
 
 function run(sql, args = []) {
   db.run(sql, args);
+  if (dbSaveTimer) {
+    clearTimeout(dbSaveTimer);
+    dbSaveTimer = null;
+  }
   saveDb();
+}
+
+function runProgressUpdate(sql, args) {
+  db.run(sql, args);
+  if (dbSaveTimer) return;
+  dbSaveTimer = setTimeout(() => {
+    dbSaveTimer = null;
+    try { saveDb(); }
+    catch (error) { log.error('database-progress-save-failed', error); }
+  }, 750);
 }
 
 function all(sql, args = []) {
@@ -244,10 +265,14 @@ function enqueueInput(input, options = {}) {
 
   const providedName = typeof input.name === 'string' && input.name.trim() ? input.name : filenameFrom(url);
   const mimeType = typeof input.mimeType === 'string' ? input.mimeType : '';
-  const name = safeName(providedName + extensionFor(providedName, mimeType));
   const destination = typeof input.destination === 'string' && input.destination.trim()
     ? input.destination
     : setting('default_download_directory', '') || app.getPath('downloads');
+  const name = uniqueDownloadName(
+    safeName(providedName + extensionFor(providedName, mimeType)),
+    destination,
+    candidate => !!one('SELECT id FROM downloads WHERE destination=? AND lower(name)=lower(?) LIMIT 1', [destination, candidate])
+  );
   const category = typeof input.category === 'string' && input.category ? input.category : categoryFor(name, mimeType);
   const referrer = validReferrer(input.referrer);
   const kind = input.kind === 'hls' || /\.m3u8(\?|$)/i.test(url) ? 'hls' : 'file';
@@ -270,11 +295,19 @@ function enqueueInput(input, options = {}) {
     [row.id, row.url, row.name, row.destination, row.category, row.kind, row.size, row.downloaded, row.status, row.created_at, row.referrer, row.error]
   );
   if (options.startNow) startDownload(row);
-  return row;
+  else if (queueRunning) pumpQueue();
+  return one('SELECT * FROM downloads WHERE id=?', [row.id]) || row;
 }
 
 function startDownload(row) {
   if (!row || active.has(row.id)) return;
+  if (active.size >= maxConcurrentDownloads()) {
+    autoStartQueue.add(row.id);
+    run('UPDATE downloads SET status=?,error=NULL WHERE id=?', ['queued', row.id]);
+    send('downloads:progress', { id: row.id, status: 'queued', downloaded: Number(row.downloaded) || 0, size: Number(row.size) || 0, speed: 0 });
+    return;
+  }
+  autoStartQueue.delete(row.id);
   run('UPDATE downloads SET status=?,error=NULL WHERE id=?', ['downloading', row.id]);
   send('downloads:progress', { id: row.id, status: 'downloading', downloaded: Number(row.downloaded) || 0, size: Number(row.size) || 0, speed: 0 });
   download(row).catch(error => log.error('download-run-failed', error));
@@ -380,7 +413,7 @@ async function downloadHls(row, controller, target, temp) {
       const now = Date.now();
       if (now - last > 350) {
         const speed = Math.round((done - lastBytes) * 1000 / (now - last));
-        run('UPDATE downloads SET downloaded=?,status=? WHERE id=?', [done, 'downloading', row.id]);
+        runProgressUpdate('UPDATE downloads SET downloaded=?,status=? WHERE id=?', [done, 'downloading', row.id]);
         send('downloads:progress', { id: row.id, downloaded: done, size: 0, speed, status: 'downloading' });
         last = now;
         lastBytes = done;
@@ -396,7 +429,6 @@ async function downloadHls(row, controller, target, temp) {
   run('UPDATE downloads SET name=?,downloaded=?,size=?,status=?,error=NULL WHERE id=?', [finalName, done, done, 'completed', row.id]);
   send('downloads:progress', { id: row.id, name: finalName, downloaded: done, size: done, speed: 0, status: 'completed' });
   notify('Download complete', finalName);
-  pumpQueue();
 }
 
 async function download(row) {
@@ -422,7 +454,16 @@ async function download(row) {
     const response = await fetch(row.url, { headers, signal: controller.signal });
     if (!response.ok && response.status !== 206) throw new Error(`HTTP ${response.status}`);
     if (start > 0 && response.status !== 206) start = 0;
-    const total = Number(response.headers.get('content-length') || 0) + (response.status === 206 ? start : 0);
+    let rangeTotal = 0;
+    if (response.status === 206) {
+      try {
+        rangeTotal = parseContentRange(response.headers.get('content-range'), start);
+      } catch (error) {
+        await response.body?.cancel().catch(() => {});
+        throw error;
+      }
+    }
+    const total = rangeTotal || Number(response.headers.get('content-length') || 0) + (response.status === 206 ? start : 0);
     const stream = require('stream').Readable.fromWeb(response.body);
     let done = start;
     let last = Date.now();
@@ -432,18 +473,19 @@ async function download(row) {
       const now = Date.now();
       if (now - last > 250) {
         const speed = Math.round((done - lastBytes) * 1000 / (now - last));
-        run('UPDATE downloads SET downloaded=?,size=?,status=? WHERE id=?', [done, total || done, 'downloading', row.id]);
-        send('downloads:progress', { id: row.id, downloaded: done, size: total || done, speed, status: 'downloading' });
+        runProgressUpdate('UPDATE downloads SET downloaded=?,size=?,status=? WHERE id=?', [done, total, 'downloading', row.id]);
+        send('downloads:progress', { id: row.id, downloaded: done, size: total, speed, status: 'downloading' });
         last = now;
         lastBytes = done;
       }
     });
     await pipeline(stream, fs.createWriteStream(temp, { flags: start ? 'a' : 'w' }));
+    const written = fs.statSync(temp).size;
+    assertCompleteFile(written, done, total);
     fs.renameSync(temp, target);
     run('UPDATE downloads SET downloaded=?,size=?,status=?,error=NULL WHERE id=?', [total || done, total || done, 'completed', row.id]);
     send('downloads:progress', { id: row.id, downloaded: total || done, size: total || done, speed: 0, status: 'completed' });
     notify('Download complete', row.name);
-    pumpQueue();
   } catch (error) {
     if (error.name === 'AbortError') {
       let pausedAt = 0;
@@ -464,16 +506,22 @@ async function download(row) {
       const current = one('SELECT * FROM downloads WHERE id=?', [row.id]);
       if (current && current.status === 'paused') startDownload(current);
     }
+    pumpQueue();
   }
 }
 
 let queueRunning = false;
 
+function maxConcurrentDownloads() {
+  const parsed = Number.parseInt(setting('max_concurrent_downloads', '3'), 10);
+  return Number.isInteger(parsed) ? Math.min(8, Math.max(1, parsed)) : 3;
+}
+
 function pumpQueue() {
-  if (!queueRunning) return;
   const queued = all("SELECT * FROM downloads WHERE status='queued' ORDER BY created_at ASC");
   for (const row of queued) {
-    if (active.size >= 3) break;
+    if (active.size >= maxConcurrentDownloads()) break;
+    if (!queueRunning && !autoStartQueue.has(row.id)) continue;
     startDownload(row);
   }
 }
@@ -485,6 +533,7 @@ function startQueue() {
 
 function stopQueue() {
   queueRunning = false;
+  autoStartQueue.clear();
   active.forEach(controller => controller.abort());
 }
 
@@ -570,6 +619,23 @@ function registryValue(key) {
   }
 }
 
+function registeredHost(key, hostPath, extensionId) {
+  const manifestPath = registryValue(key);
+  if (!manifestPath || !fs.existsSync(manifestPath)) return { registered: false, manifestPath, error: 'Native host manifest is missing' };
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    if (manifest.name !== HOST_NAME || manifest.type !== 'stdio') throw new Error('Manifest name or transport is invalid');
+    if (path.resolve(manifest.path) !== path.resolve(hostPath)) throw new Error('Manifest points to a different native host executable');
+    if (!Array.isArray(manifest.allowed_origins) || !manifest.allowed_origins.includes(`chrome-extension://${extensionId}/`)) {
+      throw new Error('Manifest does not allow the installed Meldrix extension ID');
+    }
+    if (!fs.existsSync(manifest.path)) throw new Error('Native host executable is missing');
+    return { registered: true, manifestPath, error: '' };
+  } catch (error) {
+    return { registered: false, manifestPath, error: error.message || 'Native host manifest is invalid' };
+  }
+}
+
 function browserInstalled(browser) {
   const folders = [];
   if (browser === 'chrome') {
@@ -587,20 +653,12 @@ function browserInstalled(browser) {
 }
 
 function integrationStatus() {
-  const manifestPath = path.join(dataDir(), `${HOST_NAME}.json`);
-  let manifestValid = false;
-  try {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    manifestValid = manifest && manifest.name === HOST_NAME && typeof manifest.path === 'string';
-  } catch {
-    manifestValid = false;
-  }
   const hostPath = nativeHostPath();
-  const chromeKey = REGISTRY_KEYS[0];
-  const edgeKey = REGISTRY_KEYS[1];
-  const chromeRegistry = registryValue(chromeKey);
-  const edgeRegistry = registryValue(edgeKey);
-  const recentlySeen = Date.now() - lastNativeAt < 30000;
+  const chromeHost = registeredHost(REGISTRY_KEYS.chrome, hostPath, EXTENSION_IDS.chrome);
+  const edgeHost = registeredHost(REGISTRY_KEYS.edge, hostPath, EXTENSION_IDS.edge);
+  const manifestPath = path.join(dataDir(), `${HOST_NAME}-chrome.json`);
+  const manifestValid = chromeHost.registered && edgeHost.registered;
+  const recentlySeen = Date.now() - lastNativeAt < 90000;
   return {
     connected: nativeConnections.size > 0 || recentlySeen,
     ready: !!nativeReadyAt,
@@ -610,19 +668,23 @@ function integrationStatus() {
     hostPath,
     hostExists: fs.existsSync(hostPath),
     manifestPath,
-    manifestExists: fs.existsSync(manifestPath),
+    manifestExists: fs.existsSync(manifestPath) && fs.existsSync(path.join(dataDir(), `${HOST_NAME}-edge.json`)),
     manifestValid,
     chrome: {
       installed: browserInstalled('chrome'),
-      registered: !!chromeRegistry && fs.existsSync(chromeRegistry),
-      connected: Date.now() - lastBrowserAt.chrome < 30000,
-      registryPath: chromeRegistry
+      registered: chromeHost.registered,
+      connected: Date.now() - lastBrowserAt.chrome < 90000,
+      lastConnectedAt: lastBrowserAt.chrome ? new Date(lastBrowserAt.chrome).toISOString() : null,
+      registryPath: chromeHost.manifestPath,
+      error: chromeHost.error
     },
     edge: {
       installed: browserInstalled('edge'),
-      registered: !!edgeRegistry && fs.existsSync(edgeRegistry),
-      connected: Date.now() - lastBrowserAt.edge < 30000,
-      registryPath: edgeRegistry
+      registered: edgeHost.registered,
+      connected: Date.now() - lastBrowserAt.edge < 90000,
+      lastConnectedAt: lastBrowserAt.edge ? new Date(lastBrowserAt.edge).toISOString() : null,
+      registryPath: edgeHost.manifestPath,
+      error: edgeHost.error
     },
     settings: extensionSettings()
   };
@@ -639,26 +701,24 @@ function broadcastIntegration() {
 function registerNativeMessaging() {
   if (process.platform !== 'win32') return;
   const hostPath = nativeHostPath();
-  const manifestPath = path.join(dataDir(), `${HOST_NAME}.json`);
   try {
     fs.mkdirSync(dataDir(), { recursive: true });
-    fs.writeFileSync(manifestPath, JSON.stringify({
-      name: HOST_NAME,
-      description: 'Meldrix Download Manager native messaging host',
-      path: hostPath,
-      type: 'stdio',
-      allowed_origins: [`chrome-extension://${EXTENSION_ID}/`]
-    }, null, 2));
-  } catch (error) {
-    log.error('native-manifest-write-failed', error);
-    return;
-  }
-  for (const key of REGISTRY_KEYS) {
-    try {
-      execFileSync('reg.exe', ['ADD', key, '/ve', '/t', 'REG_SZ', '/d', manifestPath, '/f'], { windowsHide: true, stdio: 'ignore' });
-    } catch (error) {
-      log.error('native-registry-failed', { key, error: error.message });
+    const manifests = {
+      chrome: path.join(dataDir(), `${HOST_NAME}-chrome.json`),
+      edge: path.join(dataDir(), `${HOST_NAME}-edge.json`)
+    };
+    for (const browser of ['chrome', 'edge']) {
+      fs.writeFileSync(manifests[browser], JSON.stringify({
+        name: HOST_NAME,
+        description: 'Meldrix Download Manager native messaging host',
+        path: hostPath,
+        type: 'stdio',
+        allowed_origins: [`chrome-extension://${EXTENSION_IDS[browser]}/`]
+      }, null, 2));
+      execFileSync('reg.exe', ['ADD', REGISTRY_KEYS[browser], '/ve', '/t', 'REG_SZ', '/d', manifests[browser], '/f'], { windowsHide: true, stdio: 'ignore' });
     }
+  } catch (error) {
+    log.error('native-messaging-registration-failed', error);
   }
 }
 
@@ -787,12 +847,9 @@ function validateNativeMessage(message) {
 
 async function handleNativeMessage(message) {
   validateNativeMessage(message);
-  lastNativeAt = Date.now();
-  if (message.browser === 'chrome' || message.browser === 'edge') lastBrowserAt[message.browser] = lastNativeAt;
-  broadcastIntegration();
-
+  let response;
   if (message.type === 'hello') {
-    return {
+    response = {
       version: PROTOCOL_VERSION,
       type: 'ready',
       app: 'meldrix',
@@ -803,9 +860,8 @@ async function handleNativeMessage(message) {
       capabilities: ['review', 'hls', 'dedupe', 'launch', 'settings'],
       settings: extensionSettings()
     };
-  }
-  if (message.type === 'ping') {
-    return {
+  } else if (message.type === 'ping') {
+    response = {
       version: PROTOCOL_VERSION,
       type: 'pong',
       app: 'meldrix',
@@ -816,14 +872,20 @@ async function handleNativeMessage(message) {
       capabilities: ['review', 'hls', 'dedupe', 'launch', 'settings'],
       settings: extensionSettings()
     };
-  }
-  if (message.type === 'show') {
+  } else if (message.type === 'show') {
     focusWindow();
-    return { version: PROTOCOL_VERSION, type: 'shown', app: 'meldrix', hostVersion: NATIVE_HOST_VERSION, desktopReady: true };
+    response = { version: PROTOCOL_VERSION, type: 'shown', app: 'meldrix', hostVersion: NATIVE_HOST_VERSION, desktopReady: true };
+  } else if (message.type === 'enqueue') {
+    response = await nativeEnqueue(message);
+  } else if (message.type === 'settings:update') {
+    response = updateExtensionSettings(message.settings);
+  } else {
+    throw bridgeError('UNSUPPORTED_TYPE', 'Unsupported operation');
   }
-  if (message.type === 'enqueue') return nativeEnqueue(message);
-  if (message.type === 'settings:update') return updateExtensionSettings(message.settings);
-  throw bridgeError('UNSUPPORTED_TYPE', 'Unsupported operation');
+  lastNativeAt = Date.now();
+  if (message.browser === 'chrome' || message.browser === 'edge') lastBrowserAt[message.browser] = lastNativeAt;
+  broadcastIntegration();
+  return response;
 }
 
 function applyLoginItem(enabled) {
@@ -946,6 +1008,15 @@ async function initDb() {
     if (!key || key === 'default_download_directory') continue;
     db.run('INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)', [key, value]);
   }
+  const interrupted = all("SELECT id,destination,name,kind,downloaded FROM downloads WHERE status='downloading'");
+  for (const row of interrupted) {
+    let downloaded = Number(row.downloaded) || 0;
+    if (row.kind !== 'hls') {
+      const partial = path.join(row.destination, `${safeName(row.name)}.meldrix.part`);
+      try { downloaded = fs.statSync(partial).size; } catch { downloaded = 0; }
+    }
+    db.run('UPDATE downloads SET status=?,downloaded=? WHERE id=?', ['paused', downloaded, row.id]);
+  }
   saveDb();
 }
 
@@ -977,7 +1048,7 @@ ipcMain.handle('downloads:resume', (_event, id) => {
   if (typeof id !== 'string') throw new Error('Invalid download task id');
   const row = one('SELECT * FROM downloads WHERE id=?', [id]);
   if (!row) throw new Error('Download task not found');
-  if (!['paused', 'queued'].includes(row.status)) throw new Error(`Cannot resume a ${row.status} task`);
+  if (!['paused', 'queued', 'failed'].includes(row.status)) throw new Error(`Cannot resume a ${row.status} task`);
   const controller = active.get(id);
   if (controller) {
     if (controller.signal.aborted) {
@@ -987,13 +1058,14 @@ ipcMain.handle('downloads:resume', (_event, id) => {
     throw new Error('Download task is already running');
   }
   startDownload(row);
-  return { ok: true, id, status: 'downloading' };
+  return { ok: true, id, status: active.has(id) ? 'downloading' : 'queued' };
 });
 
 ipcMain.handle('downloads:cancel', (_event, id) => {
   if (typeof id !== 'string' || !one('SELECT id FROM downloads WHERE id=?', [id])) throw new Error('Download task not found');
   active.get(id)?.abort();
   pendingResumes.delete(id);
+  autoStartQueue.delete(id);
   run('DELETE FROM downloads WHERE id=?', [id]);
   if (latestReview && latestReview.id === id) latestReview = null;
   return { ok: true, id };
@@ -1020,6 +1092,7 @@ ipcMain.handle('downloads:delete-many', async (_event, ids) => {
   const existingIds = rows.map(row => row.id);
   for (const id of existingIds) active.get(id)?.abort();
   existingIds.forEach(id => pendingResumes.delete(id));
+  existingIds.forEach(id => autoStartQueue.delete(id));
   db.run(`DELETE FROM downloads WHERE id IN (${existingIds.map(() => '?').join(',')})`, existingIds);
   saveDb();
   for (const id of existingIds) {
@@ -1082,7 +1155,9 @@ ipcMain.handle('browser:open-external', (_event, input) => {
 });
 
 ipcMain.handle('browser:open-extension-folder', async () => {
-  const folder = app.isPackaged ? path.join(process.resourcesPath, 'extension') : path.join(app.getAppPath(), 'extension');
+  const folder = app.isPackaged
+    ? path.join(process.resourcesPath, 'extensions')
+    : path.join(app.getAppPath(), 'dist', 'extensions');
   const error = await shell.openPath(folder);
   if (error) throw new Error(error);
   return { ok: true };
@@ -1119,6 +1194,17 @@ ipcMain.handle('help:updates-info', async () => {
 });
 
 ipcMain.handle('browser:integration-status', () => integrationStatus());
+ipcMain.handle('window:minimize', () => {
+  if (win && !win.isDestroyed()) win.minimize();
+});
+ipcMain.handle('window:toggle-maximize', () => {
+  if (!win || win.isDestroyed()) return;
+  if (win.isMaximized()) win.unmaximize();
+  else win.maximize();
+});
+ipcMain.handle('window:hide', () => {
+  if (win && !win.isDestroyed()) win.hide();
+});
 
 ipcMain.handle('settings:get', (_event, key) => {
   const row = one('SELECT value FROM settings WHERE key=?', [key]);
@@ -1129,10 +1215,17 @@ ipcMain.handle('settings:get', (_event, key) => {
 ipcMain.handle('settings:set', (_event, key, value) => {
   if (typeof key !== 'string' || typeof value !== 'string') throw new Error('Invalid setting');
   if (!Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, key)) throw new Error('Unknown setting');
+  if (key === 'max_concurrent_downloads' && !/^[1-8]$/.test(value)) {
+    throw new Error('Maximum simultaneous downloads must be between 1 and 8');
+  }
+  if (['auto_detect_downloads', 'show_video_button', 'confirm_before_download', 'start_with_windows'].includes(key) && !['0', '1'].includes(value)) {
+    throw new Error(`Setting ${key} must be 0 or 1`);
+  }
   saveSetting(key, value);
   if (key === 'start_with_windows' && app.isPackaged) {
     applyLoginItem(value === '1');
   }
+  if (key === 'max_concurrent_downloads') pumpQueue();
   broadcastIntegration();
   return value;
 });
@@ -1154,11 +1247,7 @@ app.whenReady().then(async () => {
     log.info('MELDRIX_START_DELAY_MS active', { startupDelay });
     await new Promise(resolve => setTimeout(resolve, Math.min(startupDelay, 25000)));
   }
-  try {
-    await initDb();
-  } catch (error) {
-    log.error('database-init-failed', error);
-  }
+  await initDb();
   if (app.isPackaged) {
     applyLoginItem(setting('start_with_windows', '1') === '1');
   }
@@ -1167,11 +1256,20 @@ app.whenReady().then(async () => {
   createWindow();
   createTray();
   createNativePipe();
-}).catch(error => log.error('startup-failed', error));
+}).catch(error => {
+  log.error('startup-failed', error);
+  dialog.showErrorBox('Meldrix could not start', 'The application could not initialize its database or desktop services. Check the Meldrix log for details.');
+  app.quit();
+});
 
 app.on('before-quit', () => {
   app.isQuitting = true;
   active.forEach(controller => controller.abort());
+  if (dbSaveTimer) {
+    clearTimeout(dbSaveTimer);
+    dbSaveTimer = null;
+    try { saveDb(); } catch (error) { log.error('database-shutdown-save-failed', error); }
+  }
   if (pipeServer) {
     try { pipeServer.close(); } catch { /* already closed */ }
   }

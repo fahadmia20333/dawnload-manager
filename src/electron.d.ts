@@ -19,6 +19,9 @@ interface MeldrixApi {
   showAbout: () => Promise<void>;
   showUpdateInfo: () => Promise<void>;
   integrationStatus: () => Promise<any>;
+  minimizeWindow: () => Promise<void>;
+  toggleMaximizeWindow: () => Promise<void>;
+  hideWindow: () => Promise<void>;
   selectFolder: () => Promise<string | null>;
   getSetting: (key: string) => Promise<string>;
   setSetting: (key: string, value: string) => Promise<string>;
